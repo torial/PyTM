@@ -19,6 +19,23 @@ from PyTM.console import console
 from PyTM.core import data_handler, invoice_handler
 
 
+def _prompt_hourly_rate(current_value=""):
+    """Prompt for hourly rate with validation.
+
+    Re-prompts on non-numeric input. If the user clears the field (empty input),
+    the existing value is preserved unchanged.
+    """
+    while True:
+        rate_input = Prompt.ask("Hourly rate in USD", default=current_value or "")
+        if not rate_input:
+            return current_value  # preserve existing; don't stomp with empty
+        try:
+            float(rate_input)
+            return rate_input
+        except ValueError:
+            console.print("[red]Hourly rate must be a valid number (e.g. 105 or 105.50).")
+
+
 def init_data_store(show_messages=False):
     """
     - initializes the pytm data store.
@@ -113,11 +130,9 @@ def show():
     table.add_column("Created at")
     table.add_column("Status")
     for key, value in data.items():
-        table.add_row(
-            key,
-            f'{datetime.datetime.fromisoformat(value["created_at"]).strftime("%Y, %B, %d, %H:%M:%S %p")}',
-            value["status"],
-        )
+        created_at = value.get("created_at", "")
+        date_str = datetime.datetime.fromisoformat(created_at).strftime("%Y, %B, %d, %H:%M:%S %p") if created_at else ""
+        table.add_row(key, date_str, value.get("status", ""))
     message = ""
     if state[settings.CURRENT_PROJECT]:
         message += f"Active Project: [bold blue]{state[settings.CURRENT_PROJECT]}[/bold blue]\n"
@@ -156,9 +171,7 @@ def user():
     current_user["website"] = Prompt.ask(
         "Website", default=current_user.get("website", "")
     )
-    current_user["hourly_rate"] = Prompt.ask(
-        "Hourly rate in USD", default=current_user.get("hourly_rate", "")
-    )
+    current_user["hourly_rate"] = _prompt_hourly_rate(current_user.get("hourly_rate", ""))
     state["config"]["user"] = current_user
     data_handler.save_data(state, settings.state_filepath)
     console.print("\n[green]Default user info updated.")
@@ -249,189 +262,270 @@ def invoice():
 
 
 @invoice.command()
-@click.argument("project_name")
+@click.argument("project_name", required=False)
 def auto(project_name):
     """
-    - generates invoice for existing projects.
+    - interactively generate an invoice.
+
+    If PROJECT_NAME is given, loads tasks from that tracked project.
+    Otherwise, prompts to enter tasks manually.
+    """
+    state = data_handler.load_data(settings.state_filepath)
+    config = state.get("config", {})
+    invoice_texts = config.get("invoice", {})
+
+    # ── invoice header ──────────────────────────────────────────────────────
+    invoice_number = Prompt.ask("Invoice Number", default=invoice_texts.get("invoice_number", "13"))
+    if state.get("config", {}).get("invoice", {}).get("invoice_number") == invoice_number:
+        try:
+            state["config"]["invoice"]["invoice_number"] = str(int(invoice_number) + 1)
+            data_handler.save_data(state, settings.state_filepath)
+        except ValueError:
+            console.print("[yellow]Could not auto-increment invoice number — value is not an integer.")
+
+    invoice_texts["title"] = Prompt.ask("Invoice Title", default=invoice_texts.get("title", ""))
+    invoice_texts["foot_note"] = Prompt.ask("Foot note", default=invoice_texts.get("foot_note", ""))
+    invoice_texts["logo"] = Prompt.ask("Logo Absolute path", default=invoice_texts.get("logo", ""))
+
+    # ── project / tasks ─────────────────────────────────────────────────────
+    if project_name:
+        data = data_handler.load_data()
+        if not data.get(project_name):
+            console.print(f"[bold red]{project_name} doesn't exist.")
+            return
+        project = data[project_name]
+        if not project.get("meta"):
+            project["meta"] = {}
+        project_key = project_name
+    else:
+        project = {"meta": {}, "tasks": {}}
+        project_key = "manual"
+
+    project["meta"]["title"] = Prompt.ask("Project Name", default=project["meta"].get("title", project_name or ""))
+
+    # ── biller info ─────────────────────────────────────────────────────────
+    user = config.get("user", {})
+    user["name"] = Prompt.ask("Your Name", default=user.get("name", ""))
+    user["email"] = Prompt.ask("Email", default=user.get("email", ""))
+    user["phone"] = Prompt.ask("Phone", default=user.get("phone", ""))
+    user["address"] = Prompt.ask("Address", default=user.get("address", ""))
+    user["website"] = Prompt.ask("Website", default=user.get("website", ""))
+    user["hourly_rate"] = _prompt_hourly_rate(user.get("hourly_rate", ""))
+
+    # ── client info ─────────────────────────────────────────────────────────
+    project["meta"]["client_name"] = Prompt.ask("Bill To Name", default=project["meta"].get("client_name", "Anonymous Client"))
+    project["meta"]["client_address"] = Prompt.ask("Address(street, state, zip, country)", default=project["meta"].get("client_address", ""))
+    project["meta"]["client_phone"] = Prompt.ask("Phone", default=project["meta"].get("client_phone", ""))
+    project["meta"]["client_email"] = Prompt.ask("Email", default=project["meta"].get("client_email", ""))
+    project["meta"]["client_website"] = Prompt.ask("Website", default=project["meta"].get("client_website", ""))
+
+    # ── manual task entry (only when no tracked project provided) ───────────
+    if not project_name:
+        number = 1
+        while Confirm.ask("Add a task?", default=True):
+            task_name = Prompt.ask("Task name?", default=f"Task {number}")
+            if task_name.startswith("Task"):
+                number += 1
+            description = Prompt.ask("Task description?", default="-")
+            hours_input = Prompt.ask("How many hours of work? (float)", default="0")
+            project["tasks"][task_name] = {
+                "description": description,
+                "duration": float(hours_input) * 3600,
+                "status": settings.FINISHED,
+            }
+
+    # ── generate ────────────────────────────────────────────────────────────
+    discount = Prompt.ask("Discount?", default="")
+    html, _total = invoice_handler.generate_multi(
+        {project_key: project},
+        invoice_number,
+        user,
+        discount,
+        invoice_texts["title"],
+        logo=invoice_texts.get("logo", ""),
+        foot_note=invoice_texts.get("foot_note", "Thank you for your business."),
+    )
+    if html is None:
+        console.print("[bold yellow]No tasks found. Nothing to invoice.")
+        return
+    os.makedirs(os.path.join(settings.data_folder, "invoices"), exist_ok=True)
+    html_file = os.path.join(settings.data_folder, "invoices", f"{invoice_texts['title']}.html")
+    with open(html_file, "w") as f:
+        f.write(html)
+
+    data_handler.save_invoice_record({
+        "invoice_number": invoice_number,
+        "title": invoice_texts["title"],
+        "date_from": None,
+        "date_to": None,
+        "total": _total,
+        "status": "unpaid",
+        "paid_date": None,
+        "created_at": str(datetime.date.today()),
+    })
+
+    console.print(f"The invoice is available in {html_file}")
+    webbrowser.open(f"file:///{html_file}", autoraise=True)
+
+
+@invoice.command(name="generate")
+@click.option("--projects", "-p", multiple=True, metavar="KEY", help="Project keys to include (default: all).")
+@click.option("--from", "date_from", default=None, metavar="YYYY-MM-DD", help="Include tasks on or after this date.")
+@click.option("--to", "date_to", default=None, metavar="YYYY-MM-DD", help="Include tasks on or before this date.")
+@click.option("--invoice-number", default="1", show_default=True, help="Invoice number.")
+@click.option("--discount", default=0.0, type=float, show_default=True, help="Discount amount in USD.")
+@click.option("--title", default="Invoice", show_default=True, help="Invoice title and output filename.")
+@click.option("--list", "list_projects", is_flag=True, help="List available projects with hours and exit.")
+def invoice_generate(projects, date_from, date_to, invoice_number, discount, title, list_projects):
+    """
+    - generates a multi-project invoice with optional date filtering.
     """
     data = data_handler.load_data()
-    if not data.get(project_name):
-        console.print(f"[bold red] {project_name} doesn't exist.")
-        return None
-    title, logo, foot_note, invoice_number = [""] * 4
-    discount = 0
     state = data_handler.load_data(settings.state_filepath)
-    config = state.get("config", {})
-    user = config.get("user", {})
-    invoice_texts = config.get("invoice", {})
-    invoice_number = Prompt.ask(
-        "Invoice Number", default=invoice_texts.get("invoice_number", "13")
-    )
-    if state.get("config"):
-        if state.get("config").get("invoice"):
-            if invoice_number == state.get("config").get("invoice").get(
-                "invoice_number"
-            ):
-                try:
-                    state["config"]["invoice"][
-                        "invoice_number"
-                    ] = f'{int(state.get("config").get("invoice").get("invoice_number", "13")) + 1}'
-                    data_handler.save_data(state, settings.state_filepath)
-                except Exception as _:
-                    pass
+    user = state.get("config", {}).get("user", {})
 
-    invoice_texts["title"] = Prompt.ask(
-        "Invoice Title", default=invoice_texts.get("title", "")
-    )
-    invoice_texts["foot_note"] = Prompt.ask(
-        "Foot note", default=invoice_texts.get("foot_note", "")
-    )
-    invoice_texts["logo"] = Prompt.ask(
-        "Logo Absolute path", default=invoice_texts.get("logo", "")
-    )
-
-    project, user = data[project_name], config.get("user", {})
-
-    if not project["meta"]:
-        project["meta"] = {}
-    project["meta"]["title"] = Prompt.ask(
-        "Project Name", default=f"{project['meta']['title']}"
-    )
-    project["created_at"] = Prompt.ask(
-        "Project Date (YYYY-MM-DD)",
-        default=f'{project["meta"].get("created_at", datetime.datetime.now())}',
-    )
-    user["name"] = Prompt.ask("Your Name", default=user.get("name", ""))
-    user["email"] = Prompt.ask("Email", default=user.get("email", ""))
-    user["phone"] = Prompt.ask("Phone", default=user.get("phone", ""))
-    user["address"] = Prompt.ask("Address", default=user.get("address", ""))
-    user["website"] = Prompt.ask("Website", default=user.get("website", ""))
-    user["hourly_rate"] = Prompt.ask(
-        "Hourly rate in USD", default=user.get("hourly_rate", "")
-    )
-    project["meta"]["client_name"] = Prompt.ask(
-        "Bill To Name",
-        default=f"{project['meta'].get('client_name', 'Anonymous Client')}",
-    )
-    project["meta"]["client_address"] = Prompt.ask(
-        "Address(street, state, zip, country)",
-        default=f"{project['meta'].get('client_address', 'earth')}",
-    )
-    project["meta"]["client_phone"] = Prompt.ask(
-        "Phone", default=f"{project['meta'].get('client_phone', '')}"
-    )
-    project["meta"]["client_email"] = Prompt.ask(
-        "Email", default=f"{project['meta'].get('client_email', '')}"
-    )
-    project["meta"]["client_website"] = Prompt.ask(
-        "Website", default=f"{project['meta'].get('client_website', '')}"
-    )
-    discount = Prompt.ask("Discount?", default="")
-    html = invoice_handler.generate(
-        invoice_number, invoice_texts, user, project, discount
-    )
     try:
-        os.makedirs(os.path.join(settings.data_folder, "invoices"))
-    except Exception as _:
-        pass
+        df = datetime.date.fromisoformat(date_from) if date_from else None
+        dt = datetime.date.fromisoformat(date_to) if date_to else None
+    except ValueError as e:
+        console.print(f"[bold red]Invalid date: {e}")
+        return
 
-    html_file = os.path.join(
-        settings.data_folder, "invoices", f"{invoice_texts['title']}.html"
-    )
+    if list_projects:
+        table = Table()
+        table.add_column("Key", style="blue bold")
+        table.add_column("Title")
+        table.add_column("Hours")
+        for key, proj in data.items():
+            tasks = proj.get("tasks", {}).values()
+            filtered = []
+            for t in tasks:
+                if t.get("status") == settings.ABORTED:
+                    continue
+                task_created = t.get("created_at", "")[:10]
+                try:
+                    td = datetime.date.fromisoformat(task_created)
+                except ValueError:
+                    td = None
+                if df and td and td < df:
+                    continue
+                if dt and td and td > dt:
+                    continue
+                filtered.append(t)
+            total_sec = sum(t["duration"] for t in filtered)
+            h = int(total_sec // 3600)
+            m = int((total_sec % 3600) // 60)
+            meta_title = proj.get("meta", {}).get("title", "") if proj.get("meta") else ""
+            table.add_row(key, meta_title or "-", f"{h}h {m:02d}m")
+        console.print(table)
+        return
+
+    if projects:
+        missing = [p for p in projects if p not in data]
+        if missing:
+            console.print(f"[bold red]Unknown project(s): {', '.join(missing)}")
+            console.print("Run with --list to see available projects.")
+            return
+        selected = {k: data[k] for k in projects}
+    else:
+        selected = data
+
+    html, total = invoice_handler.generate_multi(selected, invoice_number, user, discount, title, df, dt)
+
+    if html is None:
+        console.print("[bold yellow]No tasks found for the given filters. Nothing to invoice.")
+        return
+
+    os.makedirs(os.path.join(settings.data_folder, "invoices"), exist_ok=True)
+
+    html_file = os.path.join(settings.data_folder, "invoices", f"{title}.html")
     with open(html_file, "w") as f:
         f.write(html)
-    console.print(f"The invoice is available in {html_file}")
+
+    data_handler.save_invoice_record({
+        "invoice_number": invoice_number,
+        "title": title,
+        "date_from": str(df) if df else None,
+        "date_to": str(dt) if dt else None,
+        "total": total,
+        "status": "unpaid",
+        "paid_date": None,
+        "created_at": str(datetime.date.today()),
+    })
+
+    console.print(f"Invoice written to: {html_file}")
     webbrowser.open(f"file:///{html_file}", autoraise=True)
 
 
-@invoice.command()
-def manual():
+@invoice.command(name="mark-paid")
+@click.argument("invoice_number")
+@click.option("--date", "paid_date", default=None, metavar="YYYY-MM-DD", help="Payment date (defaults to today).")
+def invoice_mark_paid(invoice_number, paid_date):
     """
-    - generates invoice Solely based on prompts and config data.
+    - mark an invoice as paid.
     """
-    title, logo, foot_note, invoice_number = [""] * 4
-    discount = 0
-    state = data_handler.load_data(settings.state_filepath)
-    config = state.get("config", {})
-    user = config.get("user", {})
-    invoice_texts = config.get("invoice", {})
-    invoice_number = Prompt.ask(
-        "Invoice Number", default=invoice_texts.get("invoice_number", "13")
-    )
-    if state.get("config"):
-        if state.get("config").get("invoice"):
-            if invoice_number == state.get("config").get("invoice").get(
-                "invoice_number"
-            ):
-                try:
-                    state["config"]["invoice"][
-                        "invoice_number"
-                    ] = f'{int(state.get("config").get("invoice").get("invoice_number")) + 1}'
-                    data_handler.save_data(state, settings.state_filepath)
-                except Exception as _:
-                    pass
+    paid = paid_date or str(datetime.date.today())
+    record = data_handler.update_invoice_status(invoice_number, "paid", paid)
+    console.print(f"[green]Invoice #{invoice_number} ({record.get('title') or 'untitled'}) marked as paid on {paid}.")
 
-    invoice_texts["title"] = Prompt.ask(
-        "Invoice Title", default=invoice_texts.get("title", "")
-    )
-    invoice_texts["foot_note"] = Prompt.ask(
-        "Foot note", default=invoice_texts.get("foot_note", "")
-    )
-    invoice_texts["logo"] = Prompt.ask(
-        "Logo Absolute path", default=invoice_texts.get("logo", "")
-    )
 
-    project, user = {}, config.get("user", {})
-    project["meta"] = {}
-    project["meta"]["title"] = Prompt.ask("Project Name", default="")
-    project["created_at"] = Prompt.ask(
-        "Project Date (YYYY-MM-DD)", default=f"{datetime.datetime.now()}"
-    )
-    user["name"] = Prompt.ask("Your Name", default=user.get("name", ""))
-    user["email"] = Prompt.ask("Email", default=user.get("email", ""))
-    user["phone"] = Prompt.ask("Phone", default=user.get("phone", ""))
-    user["address"] = Prompt.ask("Address", default=user.get("address", ""))
-    user["website"] = Prompt.ask("Website", default=user.get("website", ""))
-    user["hourly_rate"] = Prompt.ask(
-        "Hourly rate in USD", default=user.get("hourly_rate", "")
-    )
-    project["meta"]["client_name"] = Prompt.ask(
-        "Bill To Name", default="Anonymous Client"
-    )
-    project["meta"]["client_address"] = Prompt.ask(
-        "Address(street, state, zip, country)", default="Earth"
-    )
-    project["meta"]["client_phone"] = Prompt.ask("Phone", default="")
-    project["meta"]["client_email"] = Prompt.ask("Email", default="")
-    project["meta"]["client_website"] = Prompt.ask("Website", default="")
-    tasks = dict()
-    number = 1
-    while Confirm.ask("Add a task?", default=True):
-        task = dict()
-        task_name = Prompt.ask("Task name?", default=f"Task {number}")
-        if task_name.startswith("Task"):
-            number += 1
-        task["description"] = Prompt.ask("Task description?", default="-")
-        task["duration"] = Prompt.ask("How many hours of work? (float)", default=0.0)
-        task["duration"] = float(task["duration"]) * 360
-        task["status"] = settings.FINISHED
-        tasks[task_name] = task
-    project["tasks"] = tasks
-    discount = Prompt.ask("Discount?", default="")
-    html = invoice_handler.generate(
-        invoice_number, invoice_texts, user, project, discount
-    )
-    try:
-        os.makedirs(os.path.join(settings.data_folder, "invoices"))
-    except Exception as _:
-        pass
-    html_file = os.path.join(
-        settings.data_folder, "invoices", f"{invoice_texts['title']}.html"
-    )
-    with open(html_file, "w") as f:
-        f.write(html)
-    console.print(f"The invoice is available in {html_file}")
-    webbrowser.open(f"file:///{html_file}", autoraise=True)
+@invoice.command(name="write-off")
+@click.argument("invoice_number")
+def invoice_write_off(invoice_number):
+    """
+    - mark an invoice as written off (not collectible).
+    """
+    record = data_handler.update_invoice_status(invoice_number, "written_off")
+    console.print(f"[yellow]Invoice #{invoice_number} ({record.get('title') or 'untitled'}) marked as written off.")
+
+
+@invoice.command(name="status")
+def invoice_status():
+    """
+    - show a status report of all invoices with totals by status.
+    """
+    from rich.table import Table as RichTable
+    invoices = data_handler.load_invoices()
+    if not invoices:
+        console.print("[yellow]No invoices recorded.")
+        return
+
+    table = RichTable(title="Invoice Status")
+    table.add_column("#", style="bold")
+    table.add_column("Title")
+    table.add_column("Period")
+    table.add_column("Total", justify="right")
+    table.add_column("Status")
+    table.add_column("Paid Date")
+
+    status_styles = {"unpaid": "yellow", "paid": "green", "written_off": "dim"}
+    totals = {"unpaid": 0.0, "paid": 0.0, "written_off": 0.0}
+
+    for inv_num, inv in sorted(invoices.items()):
+        st = inv.get("status", "unpaid")
+        totals[st] = totals.get(st, 0.0) + inv.get("total", 0.0)
+        period = f"{inv.get('date_from') or '?'} – {inv.get('date_to') or '?'}"
+        table.add_row(
+            inv_num,
+            inv.get("title") or "",
+            period,
+            f"${inv.get('total', 0.0):,.2f}",
+            f"[{status_styles.get(st, 'white')}]{st}[/]",
+            inv.get("paid_date") or "-",
+        )
+
+    console.print(table)
+    console.print()
+
+    summary = RichTable(show_header=True)
+    summary.add_column("Status")
+    summary.add_column("Total", justify="right")
+    summary.add_row("[green]Paid[/]", f"${totals['paid']:,.2f}")
+    summary.add_row("[yellow]Unpaid[/]", f"${totals['unpaid']:,.2f}")
+    summary.add_row("[dim]Written Off[/]", f"${totals.get('written_off', 0.0):,.2f}")
+    console.print(summary)
+
+
 
 
 @click.command()

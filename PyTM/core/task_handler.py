@@ -22,11 +22,12 @@ def create(data, project_name, task_name):
             ] = f"{datetime.datetime.now()}"
 
         else:
+            now = f"{datetime.datetime.now()}"
             data.get(project_name)["tasks"][task_name] = {
-                "created_at": f"{datetime.datetime.now()}",
+                "created_at": now,
                 "status": settings.STARTED,
                 "duration": 0,
-                "since": f"{datetime.datetime.now()}",
+                "since": now,
             }
 
     return data

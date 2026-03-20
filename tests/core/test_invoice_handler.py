@@ -4,11 +4,47 @@ import pytest
 
 from PyTM.core import invoice_handler
 
-TEST_TIME_NOW = datetime.datetime(
-    2023,
-    11,
-    9,
-)
+TEST_TIME_NOW = datetime.datetime(2023, 11, 9)
+
+USER = {
+    "name": "Test User",
+    "address": "123 Main St",
+    "email": "test@example.com",
+    "phone": "+1234567890",
+    "website": "test.com",
+    "hourly_rate": "100",
+}
+
+PROJECTS_MULTI = {
+    "alpha": {
+        "meta": {
+            "title": "Alpha",
+            "client_name": "Acme Corp",
+            "client_address": "1 Corp Lane",
+            "client_email": "acme@example.com",
+        },
+        "tasks": {
+            "2026-01-10-design-work": {
+                "created_at": "2026-01-10 09:00:00",
+                "status": "finished",
+                "duration": 3600.0,
+                "description": "Initial design",
+            },
+            "2026-02-05-code-review": {
+                "created_at": "2026-02-05 10:00:00",
+                "status": "finished",
+                "duration": 7200.0,
+                "description": "Code review",
+            },
+            "2026-02-10-abandoned": {
+                "created_at": "2026-02-10 10:00:00",
+                "status": "aborted",
+                "duration": 1800.0,
+                "description": "Abandoned work",
+            },
+        },
+    }
+}
 
 
 @pytest.fixture
@@ -21,24 +57,165 @@ def patch_datetime_now(monkeypatch):
     monkeypatch.setattr(invoice_handler.datetime, "datetime", mydatetime)
 
 
-def test_generate(test_data, patch_datetime_now):
-    invoice_texts = {
-        "title": "Invoice",
-        "logo": "",
-        "foot_note": "Thanks for your business.",
+# ── format_task_name ───────────────────────────────────────────────────────────
+
+def test_format_task_name_dated():
+    assert invoice_handler.format_task_name("2026-03-16-initial-doc-review") == "3/16/2026 - Initial Doc Review"
+
+
+def test_format_task_name_undated():
+    result = invoice_handler.format_task_name("some-plain-task")
+    assert result == "Some Plain Task"
+
+
+def test_format_task_name_acronym_llm():
+    result = invoice_handler.format_task_name("2026-01-01-llm-integration")
+    assert "LLM" in result
+
+
+def test_format_task_name_acronym_rag():
+    result = invoice_handler.format_task_name("2026-01-01-rag-pipeline")
+    assert "RAG" in result
+
+
+def test_format_task_name_no_date_with_underscores():
+    result = invoice_handler.format_task_name("task_with_underscores")
+    assert result == "Task With Underscores"
+
+
+# ── generate_multi ─────────────────────────────────────────────────────────────
+
+def test_generate_multi_returns_tuple(patch_datetime_now):
+    result = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test Invoice")
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+
+
+def test_generate_multi_no_tasks_returns_none():
+    empty = {"proj": {"meta": {}, "tasks": {}}}
+    html, total = invoice_handler.generate_multi(empty, "1", USER, 0, "Empty")
+    assert html is None
+    assert total == 0.0
+
+
+def test_generate_multi_aborted_tasks_excluded(patch_datetime_now):
+    aborted_only = {
+        "proj": {
+            "meta": {},
+            "tasks": {
+                "2026-01-01-done": {"created_at": "2026-01-01 09:00:00", "status": "aborted", "duration": 3600.0},
+            },
+        }
     }
-    user = {
-        "name": "Test User",
-        "address": "Earth",
-        "email": "test@email.com",
-        "phone": "+123456789",
-        "website": "test.com",
-        "hourly_rate": "125",
+    html, total = invoice_handler.generate_multi(aborted_only, "1", USER, 0, "Test")
+    assert html is None
+    assert total == 0.0
+
+
+def test_generate_multi_total_calculation(patch_datetime_now):
+    # 1h + 2h = 3h @ $100/hr = $300
+    html, total = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test")
+    assert total == pytest.approx(300.0)
+
+
+def test_generate_multi_discount_applied(patch_datetime_now):
+    html, total = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 50.0, "Test")
+    assert total == pytest.approx(250.0)
+
+
+def test_generate_multi_date_from_excludes_earlier(patch_datetime_now):
+    date_from = datetime.date(2026, 2, 1)
+    html, total = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test", date_from=date_from)
+    # Only the Feb 5 task (2h @ $100 = $200) should be included; Jan 10 excluded
+    assert total == pytest.approx(200.0)
+
+
+def test_generate_multi_date_to_excludes_later(patch_datetime_now):
+    date_to = datetime.date(2026, 1, 31)
+    html, total = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test", date_to=date_to)
+    # Only the Jan 10 task (1h @ $100 = $100) should be included
+    assert total == pytest.approx(100.0)
+
+
+def test_generate_multi_date_range_no_match(patch_datetime_now):
+    date_from = datetime.date(2025, 1, 1)
+    date_to = datetime.date(2025, 12, 31)
+    html, total = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test", date_from=date_from, date_to=date_to)
+    assert html is None
+    assert total == 0.0
+
+
+def test_generate_multi_html_contains_invoice_number(patch_datetime_now):
+    html, _ = invoice_handler.generate_multi(PROJECTS_MULTI, "42", USER, 0, "Test")
+    assert "Invoice #42" in html
+
+
+def test_generate_multi_html_contains_user_name(patch_datetime_now):
+    html, _ = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test")
+    assert USER["name"] in html
+
+
+def test_generate_multi_html_contains_client_name(patch_datetime_now):
+    html, _ = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test")
+    assert "Acme Corp" in html
+
+
+def test_generate_multi_html_contains_total(patch_datetime_now):
+    html, total = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test")
+    assert "$300.00" in html
+
+
+def test_generate_multi_includes_logo(patch_datetime_now):
+    html, _ = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test", logo="/path/to/logo.png")
+    assert 'src="/path/to/logo.png"' in html
+
+
+def test_generate_multi_no_logo_no_img_tag(patch_datetime_now):
+    html, _ = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test", logo=None)
+    assert "<img" not in html
+
+
+def test_generate_multi_custom_foot_note(patch_datetime_now):
+    html, _ = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test", foot_note="Net 30.")
+    assert "Net 30." in html
+
+
+def test_generate_multi_empty_foot_note_omitted(patch_datetime_now):
+    html, _ = invoice_handler.generate_multi(PROJECTS_MULTI, "1", USER, 0, "Test", foot_note="")
+    assert "Thank you for your business." not in html
+
+
+def test_acronyms_use_settings(monkeypatch):
+    import PyTM.settings as s
+    monkeypatch.setattr(s, "ACRONYMS", {"API"})
+    result = invoice_handler.format_task_name("2026-01-01-api-call")
+    assert "API" in result
+
+
+def test_generate_multi_skips_non_billable_project(patch_datetime_now):
+    projects = {
+        "billable": {
+            "meta": {"billable": True, "title": "Billable", "client_name": ""},
+            "tasks": {
+                "2026-01-10-work": {
+                    "created_at": "2026-01-10 09:00:00",
+                    "status": "finished",
+                    "duration": 3600.0,
+                }
+            },
+        },
+        "internal": {
+            "meta": {"billable": False, "title": "Internal"},
+            "tasks": {
+                "2026-01-11-overhead": {
+                    "created_at": "2026-01-11 09:00:00",
+                    "status": "finished",
+                    "duration": 7200.0,
+                }
+            },
+        },
     }
-    html = invoice_handler.generate(
-        "13", invoice_texts, user, test_data.get("HelloWorld!"), 10
-    )
-    assert (
-        html
-        == '<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Invoice</title>\n    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet">\n</head>\n<body class="font-sans bg-gray-100">\n    <div class="container mx-auto py-8">\n        <div class="bg-white rounded-lg shadow-lg p-8">\n            <div class="flex justify-between">\n                <div class="flex items-center">\n                    <img src="" width=150 alt="Test User" class="h-12 mr-4" style="height:auto;">\n                    <div>\n                        <h1 class="text-2xl font-semibold">Test User</h1>\n                        <p>Earth</p>\n                        <p>test@email.com</p>\n                        <p>+123456789</p>\n                        <p>test.com</p>\n                        </div>\n                </div>\n                <div class="text-right">\n                    <p class="text-sm">Invoice 13</p>\n                    <p class="text-sm">Date: 2023-11-09</p>\n                    <h2 class="font-semibold">Bill to</h2>\n                    <p>Anon</p>\n                    <p>Planet, Earth</p>\n                    <p>anon@exmaple.com</p>\n                    <p>+987654321</p>\n                    <p>example.com</p>\n                </div>\n            </div>\n            <div class="text-left mb-4">\n                <h1 class="text-2xl font-semibold">Project: Hello World!</h1>\n                <p>Date: 2023-11-05</p>\n                <p>Duration: 30 seconds</p>\n            </div>\n            <div class="mt-4">\n                <table class="w-full border-collapse border border-gray-300">\n                    <thead>\n                        <tr>\n                            <th class="p-2 border border-gray-300">Task</th>\n                            <th class="p-2 border border-gray-300">Description</th>\n                            <th class="p-2 border border-gray-300">Hours</th>\n                            <th class="p-2 border border-gray-300">Hourly Rate</th>\n                            <th class="p-2 border border-gray-300">Fee</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n\n                        <tr>\n                            <td class="p-2 border border-gray-300">Task 1</td>\n                            <td class="p-2 border border-gray-300">-</td>\n                            <td class="p-2 border border-gray-300">0.06</td>\n                            <td class="p-2 border border-gray-300">125.00$</td>\n                            <td class="p-2 border border-gray-300">7.86</td>\n                        </tr>\n<tr>\n                            <td class="p-2 border border-gray-300">Task 2</td>\n                            <td class="p-2 border border-gray-300">-</td>\n                            <td class="p-2 border border-gray-300">0.02</td>\n                            <td class="p-2 border border-gray-300">125.00$</td>\n                            <td class="p-2 border border-gray-300">2.30</td>\n                        </tr>\n                        \n                    </tbody>\n                </table>\n            </div>\n            <div class="mt-4">\n                <div class="flex justify-end">\n                    <div class="w-1/2">\n                        <table class="w-full">\n                            <tr>\n                                <td class="py-1">Subtotal:</td>\n                                <td class="text-right py-1">10.16$</td>\n                            </tr>\n                            <tr>\n                                <td class="py-1">Discount:</td>\n                                <td class="text-right py-1">10.00$</td>\n                            </tr>\n                            <tr>\n                                <td class="py-1"><strong>Total:</strong></td>\n                                <td class="text-right py-1">0.16$</td>\n                            </tr>\n                        </table>\n                    </div>\n                </div>\n            </div>\n            <div class="mt-4">\n                <p class="text-left text-sm">Thanks for your business.</p>\n            </div>\n        </div>\n    </div>\n</body>\n</html>\n'
-    )
+    html, total = invoice_handler.generate_multi(projects, "1", USER, 0, "Test")
+    # Only billable project (1h @ $100 = $100); non-billable 2h excluded
+    assert total == pytest.approx(100.0)
+    assert "Internal" not in html

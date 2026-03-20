@@ -14,7 +14,7 @@ from PyTM.core import project_handler
 def get_duration_str(sum_of_durations):
     m, s = divmod(sum_of_durations, 60)
     duration = ""
-    if m > 60:
+    if m >= 60:
         h, m = divmod(m, 60)
         if h > 24:
             d, h = divmod(h, 24)
@@ -141,14 +141,59 @@ def start(project_name):
 @click.argument("project_name")
 def remove(project_name):
     """
-    - deletes a project and related tasks.
+    - archives a project (soft delete). Use 'recover' to restore.
     """
-    state = data_handler.load_data(settings.state_filepath)
+    data = data_handler.load_data()
+    if not data.get(project_name):
+        console.print(f"[bold red]{project_name} doesn't exist.")
+        return
+    data_handler.archive_project(project_name, data[project_name])
     data_handler.update(partial(project_handler.remove, project_name=project_name))
-    if state[settings.CURRENT_PROJECT] == project_name:
+    state = data_handler.load_data(settings.state_filepath)
+    if state.get(settings.CURRENT_PROJECT) == project_name:
         state[settings.CURRENT_PROJECT] = ""
+        state[settings.CURRENT_TASK] = ""
         data_handler.save_data(state, settings.state_filepath)
-    console.print(f"[bold blue]{project_name}[/bold blue] removed.")
+    console.print(f"[bold blue]{project_name}[/bold blue] archived. Use [green]pytm project recover {project_name}[/green] to restore.")
+
+
+@project.command()
+def archived():
+    """
+    - lists all archived (soft-deleted) projects.
+    """
+    from rich.table import Table as RichTable
+    archive = data_handler.load_archive()
+    if not archive:
+        console.print("[yellow]No archived projects.")
+        return
+    table = RichTable(title="Archived Projects")
+    table.add_column("Project", style="blue bold")
+    table.add_column("Snapshots", justify="right")
+    table.add_column("Most Recently Archived")
+    for name, entries in sorted(archive.items()):
+        latest = entries[-1]["archived_at"] if entries else "-"
+        table.add_row(name, str(len(entries)), latest)
+    console.print(table)
+
+
+@project.command()
+@click.argument("project_name")
+def recover(project_name):
+    """
+    - restores the most recently archived snapshot of a project.
+    """
+    data = data_handler.load_data()
+    if data.get(project_name):
+        console.print(f"[bold red]A project named '{project_name}' already exists. Rename or remove it first.")
+        return
+    snapshot = data_handler.pop_archived_project(project_name)
+    if snapshot is None:
+        console.print(f"[bold red]No archived snapshot found for '{project_name}'.")
+        return
+    data[project_name] = snapshot["data"]
+    data_handler.save_data(data)
+    console.print(f"[bold blue]{project_name}[/bold blue] restored from archive (snapshot: {snapshot['archived_at']}).")
 
 
 @project.command()
@@ -168,15 +213,16 @@ def summary(project_name):
     """
     - shows total time of the project with task and duration.
     """
-    project_data = project_handler.summary(data_handler.load_data(), project_name)
-    project_data = project_data.get("tasks", {})
-    tree = Tree(f'[bold blue]{project_name}[/bold blue] ([i]{project["status"]}[/i])')
+    project_summary = project_handler.summary(data_handler.load_data(), project_name)
+    project_status = project_summary.get("status", "")
+    project_tasks = project_summary.get("tasks", {})
+    tree = Tree(f'[bold blue]{project_name}[/bold blue] ([i]{project_status}[/i])')
     duration = 0
-    for task, t in project_data.items():
+    for task_name, t in project_tasks.items():
         task_duration = int(round(t["duration"]))
         duration += task_duration
         tree.add(
-            f"[green]{task}[/green]: {get_duration_str(task_duration)} ([i]{t['status']}[/i])"
+            f"[green]{task_name}[/green]: {get_duration_str(task_duration)} ([i]{t['status']}[/i])"
         )
     console.print(Panel.fit(tree))
     console.print(f"[blue bold]Total time[/blue bold]: {get_duration_str(duration)}")
