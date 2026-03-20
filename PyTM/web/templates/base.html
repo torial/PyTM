@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en" x-data>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PyTM{% endblock %}</title>
+  <script src="/static/tailwind.js"></script>
+  <script defer src="/static/alpine.min.js"></script>
+  <script src="/static/htmx.min.js"></script>
+  <link rel="stylesheet" href="/static/pytm.css">
+  <script>
+    // Configure HTMX to send delete/patch via POST with _method override
+    document.addEventListener("DOMContentLoaded", () => {
+      htmx.on("htmx:configRequest", (e) => {
+        if (e.detail.verb === "delete") {
+          e.detail.parameters["_method"] = "DELETE";
+          e.detail.verb = "post";
+          e.detail.path = e.detail.path + "?_method=DELETE";
+        }
+      });
+    });
+  </script>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Nav -->
+  <nav class="bg-indigo-700 text-white px-6 py-3 flex items-center gap-6 shadow">
+    <a href="/" class="font-bold text-lg tracking-wide">⏱ PyTM</a>
+    <a href="/" class="hover:text-indigo-200 text-sm">Projects</a>
+    <a href="/invoices/page" class="hover:text-indigo-200 text-sm">Invoices</a>
+    <div id="flash-container" class="ml-auto text-sm"></div>
+  </nav>
+
+  <!-- Body -->
+  <main class="flex flex-1 overflow-hidden">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>

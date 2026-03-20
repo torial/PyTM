@@ -1,0 +1,49 @@
+{% set status_badge = {
+    "unpaid":     "bg-yellow-100 text-yellow-700",
+    "paid":       "bg-green-100 text-green-700",
+    "written_off":"bg-gray-100 text-gray-500",
+} %}
+{% set badge = status_badge.get(inv.get("status","unpaid"), "bg-gray-100 text-gray-500") %}
+{% set period = (inv.get("date_from") or "?") ~ " – " ~ (inv.get("date_to") or "?") %}
+
+<tr id="invoice-row-{{ inv.invoice_number }}" class="border-b border-gray-100 hover:bg-gray-50">
+  <td class="px-3 py-2 font-mono text-gray-500">{{ inv.invoice_number }}</td>
+  <td class="px-3 py-2">{{ inv.get("title") or "—" }}</td>
+  <td class="px-3 py-2 text-gray-400 text-xs">{{ period }}</td>
+  <td class="px-3 py-2 text-right font-medium">${{ "%.2f"|format(inv.get("total",0)) }}</td>
+  <td class="px-3 py-2">
+    <span class="px-2 py-0.5 rounded-full text-xs {{ badge }}">{{ inv.get("status","unpaid") }}</span>
+  </td>
+  <td class="px-3 py-2 text-gray-400 text-xs">{{ inv.get("paid_date") or "—" }}</td>
+  <td class="px-3 py-2">
+    <div class="flex gap-1" x-data="{showDate:false}">
+      {% if inv.get("status") == "unpaid" %}
+        <!-- Mark paid -->
+        <div x-show="!showDate">
+          <button @click="showDate=true"
+                  class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded hover:bg-green-200">
+            Paid
+          </button>
+        </div>
+        <div x-show="showDate" class="flex gap-1">
+          <input type="date" x-ref="pd" class="border border-gray-300 rounded px-1 py-0.5 text-xs w-32">
+          <button @click="
+              htmx.ajax('POST',
+                '/invoices/{{ inv.invoice_number }}/mark-paid',
+                {target:'#invoice-row-{{ inv.invoice_number }}', swap:'outerHTML',
+                 values:{paid_date: $refs.pd.value}})"
+                  class="text-xs px-2 py-0.5 bg-green-600 text-white rounded hover:bg-green-700">✓</button>
+          <button @click="showDate=false"
+                  class="text-xs px-2 py-0.5 text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <!-- Write off -->
+        <button hx-post="/invoices/{{ inv.invoice_number }}/write-off"
+                hx-target="#invoice-row-{{ inv.invoice_number }}" hx-swap="outerHTML"
+                hx-confirm="Write off invoice #{{ inv.invoice_number }}?"
+                class="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200">
+          Write off
+        </button>
+      {% endif %}
+    </div>
+  </td>
+</tr>

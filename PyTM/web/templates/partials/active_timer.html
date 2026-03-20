@@ -1,0 +1,50 @@
+{% if active and active.project and active.task and active.since %}
+<div id="active-timer" hx-swap-oob="true"
+     class="bg-indigo-700 text-white px-6 py-3 flex items-center gap-6"
+     x-data="timerWidget('{{ active.since }}', {{ active.base | float }})"
+     x-init="start()">
+  <div class="flex flex-col">
+    <span class="text-xs text-indigo-300">Active</span>
+    <span class="font-semibold">{{ active.project }} / {{ active.task }}</span>
+  </div>
+  <div class="text-2xl font-mono font-bold tracking-widest" x-text="display"></div>
+  <div class="flex gap-2 ml-auto">
+    <button hx-post="/projects/{{ active.project }}/tasks/{{ active.task }}/pause"
+            hx-target="#active-timer" hx-swap="outerHTML"
+            hx-include="closest div"
+            class="bg-yellow-400 text-yellow-900 px-3 py-1 rounded text-sm font-medium hover:bg-yellow-300">
+      Pause
+    </button>
+    <button hx-post="/projects/{{ active.project }}/tasks/{{ active.task }}/finish"
+            hx-target="#active-timer" hx-swap="outerHTML"
+            class="bg-green-400 text-green-900 px-3 py-1 rounded text-sm font-medium hover:bg-green-300">
+      Finish
+    </button>
+  </div>
+</div>
+{% else %}
+<div id="active-timer" class="hidden"></div>
+{% endif %}
+
+<script>
+function timerWidget(since, baseSecs) {
+  return {
+    since: new Date(since),
+    base: baseSecs,
+    elapsed: 0,
+    display: '0:00:00',
+    interval: null,
+    start() {
+      this.tick();
+      this.interval = setInterval(() => this.tick(), 1000);
+    },
+    tick() {
+      this.elapsed = this.base + (Date.now() - this.since.getTime()) / 1000;
+      const h = Math.floor(this.elapsed / 3600);
+      const m = Math.floor((this.elapsed % 3600) / 60);
+      const s = Math.floor(this.elapsed % 60);
+      this.display = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    },
+  }
+}
+</script>

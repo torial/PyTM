@@ -15,6 +15,7 @@ from rich.layout import Layout
 from PyTM import __version__, settings
 from PyTM.commands.project import project, get_duration_str
 from PyTM.commands.task import task
+from PyTM.commands.web import web
 from PyTM.console import console
 from PyTM.core import data_handler, invoice_handler
 
@@ -579,6 +580,7 @@ cli.add_command(show)
 cli.add_command(config)
 cli.add_command(invoice)
 cli.add_command(summary)
+cli.add_command(web)
 
 if __name__ == "__main__":
     cli()

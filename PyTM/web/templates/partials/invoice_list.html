@@ -1,0 +1,45 @@
+{% if flash is defined and flash %}
+<div class="mb-3 px-3 py-2 bg-green-100 text-green-800 rounded text-sm flex items-center justify-between">
+  <span>{{ flash }}</span>
+  {% if invoice_path is defined and invoice_path %}
+    <a href="/invoices/open/{{ invoice_path | urlencode }}"
+       target="_blank"
+       class="underline text-green-700 ml-4">Open HTML</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if invoices %}
+<table class="w-full text-sm border-collapse">
+  <thead>
+    <tr class="bg-gray-50 text-gray-600 text-left">
+      <th class="px-3 py-2 border-b border-gray-200">#</th>
+      <th class="px-3 py-2 border-b border-gray-200">Title</th>
+      <th class="px-3 py-2 border-b border-gray-200">Period</th>
+      <th class="px-3 py-2 border-b border-gray-200 text-right">Total</th>
+      <th class="px-3 py-2 border-b border-gray-200">Status</th>
+      <th class="px-3 py-2 border-b border-gray-200">Paid</th>
+      <th class="px-3 py-2 border-b border-gray-200"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for inv_num, inv in invoices.items() | sort %}
+      {% set inv = inv %}
+      {% include "partials/invoice_row.html" %}
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Totals summary -->
+{% set paid_total    = invoices.values() | selectattr("status","eq","paid")       | sum(attribute="total") %}
+{% set unpaid_total  = invoices.values() | selectattr("status","eq","unpaid")     | sum(attribute="total") %}
+{% set wo_total      = invoices.values() | selectattr("status","eq","written_off") | sum(attribute="total") %}
+<div class="mt-4 flex gap-6 text-sm">
+  <span class="text-green-700 font-medium">Paid: ${{ "%.2f"|format(paid_total) }}</span>
+  <span class="text-yellow-700 font-medium">Unpaid: ${{ "%.2f"|format(unpaid_total) }}</span>
+  <span class="text-gray-400">Written off: ${{ "%.2f"|format(wo_total) }}</span>
+</div>
+
+{% else %}
+<p class="text-gray-400 text-sm">No invoices recorded yet.</p>
+{% endif %}

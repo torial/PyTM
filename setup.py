@@ -30,10 +30,22 @@ setup(
     author="Wasi",
     author_email="wasi0013@gmail.com",
     url="https://github.com/wasi0013/PyTM",
-    packages=["PyTM", "PyTM.commands", "PyTM.core"],
+    packages=["PyTM", "PyTM.commands", "PyTM.core", "PyTM.web", "PyTM.web.routes"],
     package_dir={"python-pytm": "PyTM"},
     include_package_data=True,
+    package_data={
+        "PyTM.web": ["static/*", "templates/*.html", "templates/partials/*.html"],
+    },
     install_requires=["click", "rich"],
+    extras_require={
+        "web": [
+            "fastapi>=0.110",
+            "uvicorn[standard]>=0.27",
+            "python-multipart>=0.0.9",
+            "jinja2>=3.1",
+            "itsdangerous>=2.1",
+        ],
+    },
     license="MIT",
     zip_safe=False,
     keywords="PyTM",

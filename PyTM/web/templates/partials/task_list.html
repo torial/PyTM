@@ -1,0 +1,57 @@
+{% from "partials/_macros.html" import fmt_dur %}
+
+<div class="flex flex-col gap-4">
+
+  <div class="flex items-center justify-between">
+    <h3 class="text-lg font-semibold text-gray-700">{{ project_name }}</h3>
+  </div>
+
+  <!-- New task form -->
+  <form hx-post="/projects/{{ project_name }}/tasks"
+        hx-target="#task-panel" hx-swap="innerHTML"
+        class="flex gap-2">
+    <input name="name" type="text" placeholder="New task name…"
+           class="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+    <button class="bg-indigo-600 text-white px-4 py-1.5 rounded text-sm hover:bg-indigo-700">
+      Start
+    </button>
+  </form>
+
+  <!-- Backfill form (collapsible) -->
+  <div x-data="{open: false}">
+    <button @click="open = !open"
+            class="text-xs text-gray-400 hover:text-indigo-600">
+      <span x-text="open ? '▲ Hide backfill' : '▼ Backfill past entry'"></span>
+    </button>
+    <form x-show="open" x-cloak
+          hx-post="/projects/{{ project_name }}/tasks/backfill"
+          hx-target="#task-panel" hx-swap="innerHTML"
+          class="mt-2 grid grid-cols-2 gap-2 text-sm border border-dashed border-gray-300 rounded p-3">
+      <input name="name" type="text" placeholder="Task name" required
+             class="col-span-2 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+      <input name="entry_date" type="date" required
+             class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+      <input name="hours" type="number" step="0.25" min="0" placeholder="Hours" required
+             class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+      <input name="entry_time" type="time" placeholder="Start time"
+             class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+      <input name="description" type="text" placeholder="Description (optional)"
+             class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+      <button class="col-span-2 bg-gray-600 text-white rounded py-1 hover:bg-gray-700 text-sm">
+        Add backfill
+      </button>
+    </form>
+  </div>
+
+  <!-- Task rows -->
+  <div id="task-list-{{ project_name }}" class="flex flex-col gap-1">
+    {% if tasks %}
+      {% for task_name, task in tasks.items() %}
+        {% include "partials/task_row.html" %}
+      {% endfor %}
+    {% else %}
+      <p class="text-sm text-gray-400">No tasks yet.</p>
+    {% endif %}
+  </div>
+
+</div>

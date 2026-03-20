@@ -1,0 +1,7 @@
+{% if projects %}
+  {% for p in projects %}
+    {% include "partials/project_row.html" %}
+  {% endfor %}
+{% else %}
+  <p class="p-4 text-sm text-gray-400">No projects yet. Create one above.</p>
+{% endif %}
