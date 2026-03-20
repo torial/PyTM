@@ -91,23 +91,68 @@ Commands related to projects
 * Start a new project with a default name: :code:`pytm project start`
 * Start a new project with the given name or, start an existing project: :code:`pytm project start PROJECT_NAME`
 * Rename a project: :code:`pytm project rename OLD_PROJECT_NAME NEW_NAME`
-* Remove a project: :code:`pytm project remove PROJECT_NAME`
+* Archive (soft-delete) a project: :code:`pytm project remove PROJECT_NAME`
+* Restore an archived project: :code:`pytm project recover PROJECT_NAME`
+* List all archived projects: :code:`pytm project archived`
 * Check the status of a project: :code:`pytm project status PROJECT_NAME`
 * Check the list of tasks and duration of a project: :code:`pytm project summary PROJECT_NAME`
 * Finish active project: :code:`pytm project finish`
 * Pause active project: :code:`pytm project pause`
 * Abort active project: :code:`pytm project abort`
 
+.. note::
+   ``pytm project remove`` performs a **soft delete** — the project is archived to ``~/.pytm/archive.json`` and can be recovered with ``pytm project recover PROJECT_NAME``. No data is permanently lost.
+
 Commands related to Task
 ========================
 * Start a new task with a default name in the current active project: :code:`pytm task start`
 * Start a new task with the given name or existing task in the current active project: :code:`pytm task start TASK_NAME`
 * Rename a task of the active project: :code:`pytm task rename OLD_TASK_NAME NEW_NAME`
-* Remove a task: :code:`pytm task remove TASK_NAME`
-* current task's status: :code:`pytm task status`
+* Remove a task: :code:`pytm task remove PROJECT_NAME TASK_NAME`
+* Current task's status: :code:`pytm task status`
 * Finish active task: :code:`pytm task finish`
 * Pause active task: :code:`pytm task pause`
 * Abort active task: :code:`pytm task abort`
+* Backfill a completed task with a past date and duration: :code:`pytm task backfill PROJECT_NAME TASK_NAME --date YYYY-MM-DD --hours N`
+
+Backfill options::
+
+    pytm task backfill PROJECT_NAME TASK_NAME \
+        --date 2026-01-15 \
+        --hours 2.5 \
+        --time 09:00 \           # optional, defaults to 00:00
+        --description "Notes"    # optional
+
+Invoice commands
+================
+Configure invoice defaults (title, logo, footnote, starting invoice number)::
+
+    pytm config invoice
+
+Generate an invoice interactively (uses tracked project tasks)::
+
+    pytm invoice auto PROJECT_NAME
+
+Generate an invoice interactively without a tracked project (prompts for tasks manually)::
+
+    pytm invoice auto
+
+Generate a non-interactive multi-project invoice with optional date filtering::
+
+    pytm invoice generate
+    pytm invoice generate --projects alpha --projects beta
+    pytm invoice generate --from 2026-01-01 --to 2026-03-31
+    pytm invoice generate --invoice-number 7 --discount 50 --title "March Invoice"
+    pytm invoice generate --list    # show available projects with hours and exit
+
+Track invoice payment status::
+
+    pytm invoice mark-paid INVOICE_NUMBER
+    pytm invoice mark-paid INVOICE_NUMBER --date 2026-03-15
+    pytm invoice write-off INVOICE_NUMBER
+    pytm invoice status    # summary table of all invoices with totals by status
+
+Invoice records are stored in ``~/.pytm/invoices.json``. Generated HTML files are written to ``~/.pytm/invoices/``.
 
 Others
 ======
@@ -116,11 +161,6 @@ Configure project, user and invoice info::
     pytm config project PROJECT_NAME
     pytm config user
     pytm config invoice
-
-Generate Invoice::
-    
-    pytm invoice auto PROJECT_NAME
-    pytm invoice manual
 
 Check version::
 

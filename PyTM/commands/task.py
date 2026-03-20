@@ -1,3 +1,4 @@
+import datetime
 import click
 from functools import partial
 from PyTM.core import task_handler
@@ -149,6 +150,63 @@ def status():
             console.print("[red bold]No active task.")
     else:
         console.print("[red bold]No active project.")
+
+
+@task.command()
+@click.argument("project_name")
+@click.argument("task_name")
+@click.option("--date", "entry_date", required=True, metavar="YYYY-MM-DD", help="Date the work was performed.")
+@click.option("--hours", required=True, type=float, help="Hours worked (decimals allowed, e.g. 1.5).")
+@click.option("--time", "entry_time", default="00:00", metavar="HH:MM", help="Start time of the task (default: 00:00).")
+@click.option("--description", default="", help="Optional task description.")
+def backfill(project_name, task_name, entry_date, hours, entry_time, description):
+    """
+    - adds a completed task with a past date and duration.
+    """
+    if hours < 0:
+        console.print("[bold red]Hours must be 0 or greater.")
+        return
+    try:
+        datetime.date.fromisoformat(entry_date)
+    except ValueError:
+        console.print(f"[bold red]Invalid date '{entry_date}'. Use YYYY-MM-DD format.")
+        return
+    try:
+        datetime.time.fromisoformat(entry_time)
+    except ValueError:
+        console.print(f"[bold red]Invalid time '{entry_time}'. Use HH:MM format.")
+        return
+
+    data = data_handler.load_data()
+    if not data.get(project_name):
+        console.print(f"[bold red]Project '{project_name}' doesn't exist.")
+        return
+    if data[project_name]["tasks"].get(task_name):
+        console.print(f"[bold red]Task '{task_name}' already exists in '{project_name}'.")
+        return
+
+    timestamp = f"{entry_date} {entry_time}:00.000000"
+    duration_seconds = hours * 3600.0
+    task_data = {
+        "created_at": timestamp,
+        "status": settings.FINISHED,
+        "duration": duration_seconds,
+        "since": "",
+        "finished_at": timestamp,
+    }
+    if description:
+        task_data["description"] = description
+
+    data[project_name]["tasks"][task_name] = task_data
+    data_handler.save_data(data)
+
+    h = int(hours)
+    m = int(round((hours - h) * 60))
+    time_suffix = f" {entry_time}" if entry_time != "00:00" else ""
+    console.print(
+        f"Backfilled task [green]{task_name}[/green] in [blue]{project_name}[/blue] "
+        f"({entry_date}{time_suffix}, {h}h {m:02d}m)."
+    )
 
 
 @task.command()
