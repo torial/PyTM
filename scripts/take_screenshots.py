@@ -329,37 +329,39 @@ def take_screenshots(base_url):
         # Navigate away instead of cancelling — next step goes to /invoices
 
         # --- 09: Invoices list ---
-        page.goto(f"{base_url}/invoices")
+        page.goto(f"{base_url}/invoices/page")
         page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(1500)  # Tailwind Play CDN needs time to process dense table markup
         shot("screenshot-09-invoices.png")
 
         # --- 10: Invoice edit mode ---
         page.locator("button", has_text="Edit").first.click()
-        page.wait_for_timeout(400)
+        page.wait_for_timeout(800)
         shot("screenshot-10-invoice-edit.png")
 
         # --- 11: Mark as paid ---
-        page.goto(f"{base_url}/invoices")
+        page.goto(f"{base_url}/invoices/page")
         page.wait_for_load_state("networkidle")
-        # Click Paid on invoice #2 (unpaid)
+        page.wait_for_timeout(1500)
         rows = page.locator("tbody tr")
         for i in range(rows.count()):
             row = rows.nth(i)
             if row.locator("button", has_text="Paid").count():
                 row.locator("button", has_text="Paid").click()
-                page.wait_for_timeout(400)
+                page.wait_for_timeout(800)
                 shot("screenshot-11-invoice-mark-paid.png")
                 break
 
         # --- 12: Write-off confirm ---
-        page.goto(f"{base_url}/invoices")
+        page.goto(f"{base_url}/invoices/page")
         page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(1500)
         rows = page.locator("tbody tr")
         for i in range(rows.count()):
             row = rows.nth(i)
             if row.locator("button", has_text="Write off").count():
                 row.locator("button", has_text="Write off").click()
-                page.wait_for_timeout(400)
+                page.wait_for_timeout(800)
                 shot("screenshot-12-invoice-writeoff-confirm.png")
                 break
 
