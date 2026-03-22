@@ -18,73 +18,73 @@ Screenshots
 
 **Dashboard** — project list with sort controls and totals summary bar:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-01-dashboard.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-01-dashboard.png
    :alt: PyTM Web UI — Dashboard
    :width: 100%
 
 **Filter** — type to narrow projects by name or title in real time:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-02-dashboard-filter.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-02-dashboard-filter.png
    :alt: PyTM Web UI — Project filter
    :width: 100%
 
 **Sort by hours** — re-order projects by total time tracked:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-03-dashboard-sort.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-03-dashboard-sort.png
    :alt: PyTM Web UI — Sort by hours
    :width: 100%
 
 **Project metadata** — click ⚙ to edit title, client, hourly rate, and billable flag inline:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-04-project-meta-edit.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-04-project-meta-edit.png
    :alt: PyTM Web UI — Project metadata editing
    :width: 100%
 
 **Task panel** — click a project to see its tasks; start new tasks or resume existing ones:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-05-task-panel.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-05-task-panel.png
    :alt: PyTM Web UI — Task panel
    :width: 100%
 
 **Backfill** — log past work with date, hours, start time, and description:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-06-task-backfill.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-06-task-backfill.png
    :alt: PyTM Web UI — Backfill form
    :width: 100%
 
 **Active timer** — live HH:MM:SS counter in the nav bar; press Space to pause:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-07-active-timer.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-07-active-timer.png
    :alt: PyTM Web UI — Active timer
    :width: 100%
 
 **Inline confirm** — destructive actions show an in-place confirmation instead of a browser dialog:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-08-inline-confirm.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-08-inline-confirm.png
    :alt: PyTM Web UI — Inline confirmation
    :width: 100%
 
 **Invoices** — history table with sortable columns, totals by status, and action buttons per row:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-09-invoices.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-09-invoices.png
    :alt: PyTM Web UI — Invoice list
    :width: 100%
 
 **Invoice edit / regenerate** — click Edit to pre-fill the form with existing values and regenerate:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-10-invoice-edit.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-10-invoice-edit.png
    :alt: PyTM Web UI — Invoice edit mode
    :width: 100%
 
 **Mark as paid** — date picker (defaulting to today) appears inline to record a payment:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-11-invoice-mark-paid.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-11-invoice-mark-paid.png
    :alt: PyTM Web UI — Mark invoice paid
    :width: 100%
 
 **Write-off confirm** — inline Yes/No confirmation before changing invoice status:
 
-.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-12-invoice-writeoff-confirm.png
+.. image:: https://github.com/torial/PyTM/raw/Improvements/ext/images/screenshot-12-invoice-writeoff-confirm.png
    :alt: PyTM Web UI — Write-off confirmation
    :width: 100%
 
