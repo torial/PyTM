@@ -13,7 +13,7 @@ if sys.argv[-1] == "publish":
     os.system("python setup.py sdist upload")
     sys.exit()
 
-readme = open("README.rst").read()
+readme = open("README.md").read()
 doclink = """
 Documentation
 -------------
@@ -26,7 +26,7 @@ setup(
     version="1.0.0",
     description="PyTM - CLI time tracker with web UI, project management, and invoice generation",
     long_description=readme + "\n\n" + doclink + "\n\n" + history,
-    long_description_content_type="text/x-rst",
+    long_description_content_type="text/markdown",
     author="Sean (torial)",
     author_email="",
     url="https://github.com/torial/PyTM",
