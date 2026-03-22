@@ -329,7 +329,7 @@ def take_screenshots(base_url):
         # Navigate away instead of cancelling — next step goes to /invoices
 
         # --- 09: Invoices list ---
-        page.goto(f"{base_url}/invoices")
+        page.goto(f"{base_url}/invoices/page")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(1500)  # Tailwind Play CDN needs time to process dense table markup
         shot("screenshot-09-invoices.png")
@@ -340,7 +340,7 @@ def take_screenshots(base_url):
         shot("screenshot-10-invoice-edit.png")
 
         # --- 11: Mark as paid ---
-        page.goto(f"{base_url}/invoices")
+        page.goto(f"{base_url}/invoices/page")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(1500)
         rows = page.locator("tbody tr")
@@ -353,7 +353,7 @@ def take_screenshots(base_url):
                 break
 
         # --- 12: Write-off confirm ---
-        page.goto(f"{base_url}/invoices")
+        page.goto(f"{base_url}/invoices/page")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(1500)
         rows = page.locator("tbody tr")
