@@ -34,14 +34,14 @@ def _strip_version(raw):
 
 def init_data(path=settings.data_filepath, data={}):
     """Creates the data file at the given path."""
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(_versioned(data), f)
 
 
 def load_data(path=settings.data_filepath):
     """Loads and migrates data from the given path."""
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             raw = json.load(f)
     except FileNotFoundError:
         return {}
@@ -54,7 +54,7 @@ def load_data(path=settings.data_filepath):
 def save_data(data, path=settings.data_filepath):
     """Saves data to the given path, stamping the current schema version."""
     if data is not None:
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(_versioned(data), f)
 
 
@@ -69,7 +69,7 @@ def update(func, path=settings.data_filepath):
 def load_invoices(path=settings.invoices_filepath):
     """Load invoice records from invoices.json."""
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             raw = json.load(f)
     except FileNotFoundError:
         return {}
@@ -81,7 +81,7 @@ def load_invoices(path=settings.invoices_filepath):
 
 def save_invoices(invoices, path=settings.invoices_filepath):
     """Save invoice records to invoices.json."""
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(_versioned(invoices), f, indent=2)
 
 
@@ -122,7 +122,7 @@ def update_invoice_status(invoice_number, status, paid_date=None, path=settings.
 def load_archive(path=settings.archive_filepath):
     """Load archived projects. Returns dict keyed by project name, values are lists of snapshots."""
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             raw = json.load(f)
     except FileNotFoundError:
         return {}
@@ -134,7 +134,7 @@ def load_archive(path=settings.archive_filepath):
 
 def save_archive(archive, path=settings.archive_filepath):
     """Persist the archive to disk."""
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(_versioned(archive), f, indent=2)
 
 

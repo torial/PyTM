@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" x-data>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PyTM{% endblock %}</title>
+  <script src="/static/tailwind.js"></script>
+  <script defer src="/static/alpine.min.js"></script>
+  <script src="/static/htmx.min.js"></script>
+  <link rel="stylesheet" href="/static/pytm.css">
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Configure HTMX to send delete/patch via POST with _method override
+      htmx.on("htmx:configRequest", (e) => {
+        if (e.detail.verb === "delete") {
+          e.detail.parameters["_method"] = "DELETE";
+          e.detail.verb = "post";
+          e.detail.path = e.detail.path + "?_method=DELETE";
+        }
+      });
+
+      // Global loading indicator
+      const ind = document.getElementById("loading-indicator");
+      document.body.addEventListener("htmx:beforeRequest", () => ind?.classList.add("htmx-loading"));
+      document.body.addEventListener("htmx:afterRequest",  () => ind?.classList.remove("htmx-loading"));
+
+      // Keyboard shortcut: Space = pause/resume active timer (when not in a text field)
+      document.addEventListener("keydown", (e) => {
+        if (e.code !== "Space" || e.target.matches("input, textarea, select, button")) return;
+        const timer = document.getElementById("active-timer");
+        if (!timer || timer.classList.contains("hidden")) return;
+        e.preventDefault();
+        const pauseBtn = timer.querySelector("button[hx-post*='/pause']");
+        if (pauseBtn) { pauseBtn.click(); return; }
+        // Timer bar not visible but a task might be paused — no-op; user must resume from task row
+      });
+    });
+  </script>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Nav -->
+  <nav class="bg-indigo-700 text-white px-6 py-3 flex items-center gap-6 shadow">
+    <a href="/" class="font-bold text-lg tracking-wide">⏱ PyTM</a>
+    <a href="/" class="hover:text-indigo-200 text-sm">Projects</a>
+    <a href="/invoices/page" class="hover:text-indigo-200 text-sm">Invoices</a>
+    <div id="loading-indicator" class="ml-4 flex gap-1" aria-hidden="true">
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce" style="animation-delay:0ms"></span>
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce" style="animation-delay:100ms"></span>
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce" style="animation-delay:200ms"></span>
+    </div>
+    <div id="flash-container" class="ml-auto text-sm"></div>
+  </nav>
+
+  <!-- Body -->
+  <main class="flex flex-1 overflow-hidden">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>

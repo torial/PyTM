@@ -3,9 +3,7 @@ Contributing
 ============
 
 Contributions are welcome, and they are greatly appreciated! Every
-little bit helps, and credit will always be given. 
-
-You can contribute in many ways:
+little bit helps, and credit will always be given.
 
 Types of Contributions
 ----------------------
@@ -13,7 +11,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://github.com/wasi0013/PyTM/issues.
+Report bugs at https://github.com/torial/PyTM/issues.
 
 If you are reporting a bug, please include:
 
@@ -36,14 +34,14 @@ is open to whoever wants to implement it.
 Write Documentation
 ~~~~~~~~~~~~~~~~~~~
 
-PyTM could always use more documentation, whether as part of the 
-official PyTM docs, in docstrings, or even on the web in blog posts,
+PyTM could always use more documentation, whether as part of the
+official docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://github.com/wasi0013/PyTM/issues.
+The best way to send feedback is to file an issue at https://github.com/torial/PyTM/issues.
 
 If you are proposing a feature:
 
@@ -55,36 +53,36 @@ If you are proposing a feature:
 Get Started!
 ------------
 
-Ready to contribute? Here's how to set up `PyTM` for
-local development.
+Ready to contribute? Here's how to set up `PyTM` for local development.
 
 1. Fork_ the `PyTM` repo on GitHub.
 2. Clone your fork locally::
 
     $ git clone git@github.com:your_name_here/PyTM.git
 
-3. Create a branch for local development::
+3. Install in editable mode with all dependencies::
+
+    $ cd PyTM
+    $ pip install -e ".[web]"
+    $ pip install pytest
+
+4. Create a branch for local development::
 
     $ git checkout -b name-of-your-bugfix-or-feature
 
-Now you can make your changes locally.
+5. Make your changes and ensure the tests pass::
 
-4. When you're done making changes, check that your changes pass style and unit
-   tests, including testing other Python versions with tox::
+    $ pytest
 
-    $ tox
-
-To get tox, just pip install it.
-
-5. Commit your changes and push your branch to GitHub::
+6. Commit your changes and push your branch to GitHub::
 
     $ git add .
     $ git commit -m "Your detailed description of your changes."
     $ git push origin name-of-your-bugfix-or-feature
 
-6. Submit a pull request through the GitHub website.
+7. Submit a pull request through the GitHub website.
 
-.. _Fork: https://github.com/wasi0013/PyTM/fork
+.. _Fork: https://github.com/torial/PyTM/fork
 
 Pull Request Guidelines
 -----------------------
@@ -92,18 +90,52 @@ Pull Request Guidelines
 Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
-2. If the pull request adds functionality, the docs should be updated. Put
-   your new functionality into a function with a docstring, and add the
-   feature to the list in README.rst.
-3. The pull request should work for Python 2.6, 2.7, and 3.3, and for PyPy.
-   Check https://travis-ci.org/wasi0013/PyTM 
-   under pull requests for active pull requests or run the ``tox`` command and
-   make sure that the tests pass for all supported Python versions.
-
+2. If the pull request adds functionality, the docs should be updated.
+3. All tests should pass for Python 3.12+.
 
 Tips
 ----
 
 To run a subset of tests::
 
-	 $ py.test test/test_PyTM.py
+    $ pytest tests/test_cli.py
+
+Publishing to PyPI
+------------------
+
+These steps are for the package maintainer only.
+
+1. Install the build and upload tools::
+
+    $ pip install build twine
+
+2. Bump the version in both ``setup.py`` and ``PyTM/__init__.py``.
+
+3. Add a changelog entry in ``HISTORY.rst``.
+
+4. Build the distribution packages (creates ``dist/``)::
+
+    $ python -m build
+
+5. Check the packages before uploading::
+
+    $ twine check dist/*
+
+6. Upload to PyPI::
+
+    $ twine upload dist/*
+
+   You will be prompted for your PyPI username and password (or API token).
+   To use an API token, set username to ``__token__`` and paste the token
+   as the password, or configure ``~/.pypirc``::
+
+    [pypi]
+    username = __token__
+    password = pypi-<your-token-here>
+
+7. Verify the release at https://pypi.org/project/pytm-web/.
+
+8. Tag the release in git::
+
+    $ git tag v1.0.0
+    $ git push origin v1.0.0

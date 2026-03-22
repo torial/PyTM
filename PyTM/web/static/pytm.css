@@ -1,0 +1,15 @@
+/* Minimal custom styles — Tailwind utility classes handle most of the UI */
+
+[x-cloak] { display: none !important; }
+
+/* HTMX global loading indicator */
+#loading-indicator { opacity: 0; transition: opacity 0.15s ease; pointer-events: none; }
+#loading-indicator.htmx-loading { opacity: 1; }
+
+/* Smooth HTMX transitions */
+.htmx-settling { opacity: 0.6; transition: opacity 0.15s ease; }
+.htmx-swapping  { opacity: 0; transition: opacity 0.1s ease; }
+
+/* Scrollbar styling for sidebar */
+aside::-webkit-scrollbar { width: 4px; }
+aside::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 2px; }

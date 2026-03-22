@@ -1,0 +1,7 @@
+{# Jinja2 macros shared across partials #}
+{% macro fmt_dur(seconds) %}
+  {%- set s = seconds | int -%}
+  {%- set h = (s // 3600) -%}
+  {%- set m = ((s % 3600) // 60) -%}
+  {{ h }}h {{ "%02d"|format(m) }}m
+{%- endmacro %}
