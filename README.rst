@@ -1,95 +1,136 @@
- .. image:: https://github.com/wasi0013/PyTM/raw/master/ext/images/PyTM-logo.png
-    :target: https://github.com/wasi0013/PyTM/
-    :alt: PyTM - Logo
-
-
-
-
-**PУΓM** -  A CLI time tracker for projects with invoice generation
--------------------------------------------------------------------
-
-
-|image1| |coverage| |image3| |Contributors| |DownloadStats| |DocsStats| |image2|
+PyTM — CLI time tracker with web UI, project management, and invoice generation
 ================================================================================
 
-.. |image1| image:: https://badge.fury.io/py/python-pytm.png
-   :target: https://badge.fury.io/py/python-pytm
-.. |image2| image:: https://img.shields.io/pypi/l/python-pytm.svg
-   :target: https://pypi.org/project/python-pytm/
-.. |image3| image:: https://img.shields.io/pypi/pyversions/python-pytm.svg
-   :target: https://pypi.org/project/python-pytm/
+.. image:: https://img.shields.io/pypi/l/pytm-web.svg
+   :target: https://pypi.org/project/pytm-web/
+.. image:: https://img.shields.io/pypi/pyversions/pytm-web.svg
+   :target: https://pypi.org/project/pytm-web/
    :alt: Supported Python Versions
-.. |Contributors| image:: https://img.shields.io/github/contributors/wasi0013/PyTM.svg
-   :target: https://github.com/wasi0013/PyTM/graphs/contributors
-   :alt: List of Contributors
-.. |DownloadStats| image:: https://pepy.tech/badge/python-pytm
-   :target: https://pepy.tech/project/python-pytm
-   :alt: Download Stats
-.. |DocsStats| image:: https://readthedocs.org/projects/pytm/badge/?version=latest
-   :target: https://pytm.readthedocs.io/en/latest/?badge=latest
-   :alt: Documentation Status
-.. |coverage| image:: https://img.shields.io/badge/coverage-56%25-blue
-   :target: https://pytm.readthedocs.io/en/latest/?badge=latest
-   :alt: Documentation Status
 
-Goals
------
-
-Project time management, billing, and invoice generation.
-
-Preview
--------
-
- .. image:: https://github.com/wasi0013/PyTM/raw/master/ext/images/demo.gif
-    :target: https://github.com/wasi0013/PyTM/raw/master/ext/images/demo.gif
-    :alt: PyTM - Preview
+.. note::
+   This is a fork of `python-pytm <https://github.com/wasi0013/PyTM>`_ by
+   `Wasi (wasi0013) <https://github.com/wasi0013>`_, significantly extended
+   with additional CLI commands, schema versioning, and a full web UI.
+   See `Attribution`_ below.
 
 Screenshots
 -----------
 
- .. image:: https://github.com/wasi0013/PyTM/raw/master/ext/images/demo.png
-    :target: https://github.com/wasi0013/PyTM/
-    :alt: PyTM - Screenshot
+**Dashboard** — project list with sort controls and totals summary bar:
 
- .. image:: https://github.com/wasi0013/PyTM/raw/master/ext/images/Demo-Invoice.png
-    :target: https://github.com/wasi0013/PyTM/
-    :alt: PyTM - Invoice
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-01-dashboard.png
+   :alt: PyTM Web UI — Dashboard
+   :width: 100%
 
-Installing PyTM
----------------
+**Filter** — type to narrow projects by name or title in real time:
 
-* First download and install `pyenv <https://github.com/pyenv/pyenv#installation>`_. Use the command::
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-02-dashboard-filter.png
+   :alt: PyTM Web UI — Project filter
+   :width: 100%
 
-    curl https://pyenv.run | bash
+**Sort by hours** — re-order projects by total time tracked:
 
-* Next, install Python 3.12 using the command::
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-03-dashboard-sort.png
+   :alt: PyTM Web UI — Sort by hours
+   :width: 100%
 
-    pyenv install 3.12.0
+**Project metadata** — click ⚙ to edit title, client, hourly rate, and billable flag inline:
 
-  Alternatively, you can skip pyenv installation and download python 3.12 or above from the official website and setup a virtualenv as well. 
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-04-project-meta-edit.png
+   :alt: PyTM Web UI — Project metadata editing
+   :width: 100%
+
+**Task panel** — click a project to see its tasks; start new tasks or resume existing ones:
+
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-05-task-panel.png
+   :alt: PyTM Web UI — Task panel
+   :width: 100%
+
+**Backfill** — log past work with date, hours, start time, and description:
+
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-06-task-backfill.png
+   :alt: PyTM Web UI — Backfill form
+   :width: 100%
+
+**Active timer** — live HH:MM:SS counter in the nav bar; press Space to pause:
+
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-07-active-timer.png
+   :alt: PyTM Web UI — Active timer
+   :width: 100%
+
+**Inline confirm** — destructive actions show an in-place confirmation instead of a browser dialog:
+
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-08-inline-confirm.png
+   :alt: PyTM Web UI — Inline confirmation
+   :width: 100%
+
+**Invoices** — history table with sortable columns, totals by status, and action buttons per row:
+
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-09-invoices.png
+   :alt: PyTM Web UI — Invoice list
+   :width: 100%
+
+**Invoice edit / regenerate** — click Edit to pre-fill the form with existing values and regenerate:
+
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-10-invoice-edit.png
+   :alt: PyTM Web UI — Invoice edit mode
+   :width: 100%
+
+**Mark as paid** — date picker (defaulting to today) appears inline to record a payment:
+
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-11-invoice-mark-paid.png
+   :alt: PyTM Web UI — Mark invoice paid
+   :width: 100%
+
+**Write-off confirm** — inline Yes/No confirmation before changing invoice status:
+
+.. image:: https://github.com/torial/PyTM/raw/main/ext/images/screenshot-12-invoice-writeoff-confirm.png
+   :alt: PyTM Web UI — Write-off confirmation
+   :width: 100%
 
 
-* Next, install PyTM from `PyPI <https://pypi.org/project/python-pytm/>`_ using :code:`pip`::
+Goals
+-----
 
-    python -m pip install python-pytm
+Project time management, billing, and invoice generation — usable from the
+terminal or a local web browser.
 
-Check the version by typing the following in your terminal.::
-    
-     pytm --version
+
+Installing
+----------
+
+Install the CLI only::
+
+    pip install pytm-web
+
+Install with the web UI::
+
+    pip install "pytm-web[web]"
+
+For local development (editable)::
+
+    git clone https://github.com/torial/PyTM.git
+    cd PyTM
+    pip install -e ".[web]"
+
+Check the version::
+
+    pytm --version
 
 
 Basic commands
----------------
+--------------
 
-To see the available commands type::
+To see all available commands::
 
     pytm --help
 
 
 Commands related to projects
-============================
+=============================
+
 * Start a new project with a default name: :code:`pytm project start`
-* Start a new project with the given name or, start an existing project: :code:`pytm project start PROJECT_NAME`
+* Start a new project with the given name or resume an existing one: :code:`pytm project start PROJECT_NAME`
 * Rename a project: :code:`pytm project rename OLD_PROJECT_NAME NEW_NAME`
 * Archive (soft-delete) a project: :code:`pytm project remove PROJECT_NAME`
 * Restore an archived project: :code:`pytm project recover PROJECT_NAME`
@@ -101,15 +142,19 @@ Commands related to projects
 * Abort active project: :code:`pytm project abort`
 
 .. note::
-   ``pytm project remove`` performs a **soft delete** — the project is archived to ``~/.pytm/archive.json`` and can be recovered with ``pytm project recover PROJECT_NAME``. No data is permanently lost.
+   ``pytm project remove`` performs a **soft delete** — the project is archived
+   to ``~/.pytm/archive.json`` and can be recovered with
+   ``pytm project recover PROJECT_NAME``. No data is permanently lost.
 
-Commands related to Task
-========================
-* Start a new task with a default name in the current active project: :code:`pytm task start`
-* Start a new task with the given name or existing task in the current active project: :code:`pytm task start TASK_NAME`
+
+Commands related to tasks
+==========================
+
+* Start a new task with a default name in the active project: :code:`pytm task start`
+* Start a new task or resume an existing one: :code:`pytm task start TASK_NAME`
 * Rename a task of the active project: :code:`pytm task rename OLD_TASK_NAME NEW_NAME`
 * Remove a task: :code:`pytm task remove PROJECT_NAME TASK_NAME`
-* Current task's status: :code:`pytm task status`
+* Current task status: :code:`pytm task status`
 * Finish active task: :code:`pytm task finish`
 * Pause active task: :code:`pytm task pause`
 * Abort active task: :code:`pytm task abort`
@@ -120,20 +165,22 @@ Backfill options::
     pytm task backfill PROJECT_NAME TASK_NAME \
         --date 2026-01-15 \
         --hours 2.5 \
-        --time 09:00 \           # optional, defaults to 00:00
-        --description "Notes"    # optional
+        --time 09:00 \
+        --description "Meeting notes"
+
 
 Invoice commands
 ================
+
 Configure invoice defaults (title, logo, footnote, starting invoice number)::
 
     pytm config invoice
 
-Generate an invoice interactively (uses tracked project tasks)::
+Generate an invoice interactively using a tracked project::
 
     pytm invoice auto PROJECT_NAME
 
-Generate an invoice interactively without a tracked project (prompts for tasks manually)::
+Generate an invoice interactively without a tracked project (enter tasks manually)::
 
     pytm invoice auto
 
@@ -152,50 +199,146 @@ Track invoice payment status::
     pytm invoice write-off INVOICE_NUMBER
     pytm invoice status    # summary table of all invoices with totals by status
 
-Invoice records are stored in ``~/.pytm/invoices.json``. Generated HTML files are written to ``~/.pytm/invoices/``.
+Invoice records are stored in ``~/.pytm/invoices.json``.
+Generated HTML files are written to ``~/.pytm/invoices/``.
 
-Others
+
+Web UI
 ======
-Configure project, user and invoice info::
+
+Launch the local web interface::
+
+    pytm web
+
+Options::
+
+    pytm web --host 0.0.0.0 --port 8080 --no-browser
+
+Built with FastAPI, HTMX, Alpine.js, and Tailwind CSS. Static assets are
+vendored (no CDN required after install).
+
+Dashboard (Projects)
+~~~~~~~~~~~~~~~~~~~~~
+
+The left sidebar lists all active projects. From here you can:
+
+* **Sort** by name (A–Z), total hours, or last-updated date.
+* **Filter** projects by typing in the filter input — matches on both the
+  project key and its display title.
+* **Create** a new project by typing a name and pressing Enter or ``+``.
+  The input clears automatically after creation.
+* **See totals** in a pinned summary bar at the bottom of the list — total
+  hours across all projects and billable hours only.
+
+Each project row shows the display title (or key if untitled), current status
+badge, total duration, and last-updated date. Action buttons appear inline:
+
+* **Pause / Finish** when a project is running.
+* **Resume** when paused, finished, or aborted — targets just that row.
+* **⚙ gear** opens an inline metadata edit form for Title, Client name,
+  Hourly rate, and Billable flag. Changes take effect immediately.
+* **✕ archive** with an inline "Archive? Yes / No" confirmation (no browser
+  dialog).
+
+The active timer bar appears at the top of the main area when a task is
+running, showing the project's display title and task name with a live
+HH:MM:SS counter. Press **Space** to pause the active task from anywhere in
+the dashboard (when not focused in a text field).
+
+Task Panel
+~~~~~~~~~~~
+
+Clicking a project loads its task list into the right panel, which auto-focuses
+the new-task input so you can start typing immediately. The panel header shows
+the project's display title with the key slug below it.
+
+From the task panel you can:
+
+* **Start a new task** by typing a name and pressing Enter (or clicking
+  Start). Any currently running task is paused automatically.
+* **Backfill a past entry** — expand the collapsible backfill form to log
+  historical work with a date (defaults to today), hours, optional start
+  time, and description.
+* **Resume, Pause, or Finish** any existing task inline.
+* **Abort** a task with an inline "Abort? Yes / No" confirmation.
+* **Delete** a task permanently with an inline "Delete? Yes / No"
+  confirmation.
+
+All task actions produce a toast notification in the nav bar that
+auto-dismisses after 3 seconds.
+
+Invoices
+~~~~~~~~~
+
+The invoice page shows the generation form on the left and the invoice history
+table on the right.
+
+Generation form:
+
+* **Invoice number** defaults to the next sequential number (max existing + 1).
+* **Mode toggle** switches between project-based (select one or more
+  projects from a multi-select list) and manual entry (add arbitrary line
+  items with name, hours, and description).
+* **Date range** filters tasks to the specified period when in project mode.
+* **Discount** and **Footnote** fields round out the invoice.
+* Clicking **Generate** writes an HTML invoice to ``~/.pytm/invoices/`` and
+  records the metadata in ``invoices.json``.
+
+Invoice history table:
+
+* **Sort** by invoice number or billing period using the clickable column
+  headers.
+* **View** opens the generated HTML invoice in a new tab.
+* **Edit** pre-fills the generation form with the invoice's existing values
+  (number, title, dates, discount, footnote) so you can regenerate it.
+  Payment status and paid date are preserved on regenerate.
+* **Paid** reveals a date picker (defaulting to today) and records the
+  payment date.
+* **Write off** marks an invoice as written off, with an inline confirmation.
+* Totals for paid, unpaid, and written-off amounts appear below the table.
+
+
+Other commands
+==============
+
+Configure project, user, and invoice info::
 
     pytm config project PROJECT_NAME
     pytm config user
     pytm config invoice
 
-Check version::
-
-    pytm --version
-    pytm -v
-
-Check summary of all the projects::
+Summary of all projects::
 
     pytm summary
-
-For a list of all the available commands try::
-
-    pytm --help
 
 
 Running the tests
 -----------------
 
-* Clone this `repository <https://github.com/wasi0013/PyTM>`_
+::
 
-* Install dependencies::
-
-    pip install -r requirements.txt
-
-* run the tests::
-
-    py.test
+    git clone https://github.com/torial/PyTM.git
+    cd PyTM
+    pip install -e ".[web]"
+    pip install pytest
+    pytest
 
 
-Notes
------
+Attribution
+-----------
 
-* **Author** - `Wasi <https://www.wasi0013.com/>`_ - (`wasi0013 <https://github.com/wasi0013>`_).
-* **License** - see the `LICENSE <LICENSE>`_ file.
-* **Contributing** - see `CONTRIBUTING.rst <CONTRIBUTING.rst>`_ for detail. You can also help by creating `issues <https://github.com/wasi0013/PyTM/issues/new/>`_.
-* **Version** - see the `tags on this repository <https://github.com/wasi0013/PyTM/tags>`_.
-* **Acknowledgments** - bootstrapped using `this cookiecutter package <https://github.com/audreyr/cookiecutter-pypackage>`_.
-* Built With :heart: using `Python <https://python.org/>`_.
+**Original project:** `python-pytm <https://github.com/wasi0013/PyTM>`_ by
+`Wasi (wasi0013) <https://github.com/wasi0013>`_. The original CLI, core data
+layer, project/task management, and invoice generation were written by Wasi and
+are the foundation this fork builds on.
+
+**Fork maintained by:** `Sean (torial) <https://github.com/torial>`_ — added
+CLI extensions (backfill, invoice generate/mark-paid/write-off/status, project
+archive/recover), schema versioning, the full web UI (FastAPI + HTMX +
+Alpine.js), expanded test coverage, and this package (``pytm-web``).
+
+**AI assistance:** `Claude (Anthropic) <https://anthropic.com>`_ — pair
+programming on the CLI extensions, web UI architecture and implementation,
+test suite, and documentation for this fork.
+
+**License:** MIT — see `LICENSE <LICENSE>`_.

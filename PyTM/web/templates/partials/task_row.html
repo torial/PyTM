@@ -56,19 +56,37 @@
       </button>
     {% endif %}
     {% if task_status != "aborted" %}
-      <button hx-post="/projects/{{ project_name }}/tasks/{{ task_name }}/abort"
-              hx-target="#task-row-{{ task_name }}" hx-swap="outerHTML"
-              hx-confirm="Abort task '{{ task_name }}'?"
-              class="text-xs px-2 py-0.5 bg-orange-50 text-orange-500 rounded hover:bg-orange-100">
-        Abort
-      </button>
+      <span x-data="{c:false}">
+        <button x-show="!c" @click.stop="c=true"
+                class="text-xs px-2 py-0.5 bg-orange-50 text-orange-500 rounded hover:bg-orange-100">
+          Abort
+        </button>
+        <span x-show="c" class="inline-flex items-center gap-1">
+          <span class="text-xs text-gray-400">Abort?</span>
+          <button @click.stop
+                  hx-post="/projects/{{ project_name }}/tasks/{{ task_name }}/abort"
+                  hx-target="#task-row-{{ task_name }}" hx-swap="outerHTML"
+                  class="text-xs px-1.5 py-0.5 bg-orange-600 text-white rounded hover:bg-orange-700">Yes</button>
+          <button @click.stop="c=false"
+                  class="text-xs px-1.5 py-0.5 text-gray-400 hover:text-gray-600">No</button>
+        </span>
+      </span>
     {% endif %}
-    <button hx-delete="/projects/{{ project_name }}/tasks/{{ task_name }}"
-            hx-target="#task-panel" hx-swap="innerHTML"
-            hx-confirm="Delete task '{{ task_name }}'?"
-            class="text-xs px-2 py-0.5 bg-red-50 text-red-400 rounded hover:bg-red-100">
-      ✕
-    </button>
+    <span x-data="{c:false}">
+      <button x-show="!c" @click.stop="c=true"
+              class="text-xs px-2 py-0.5 bg-red-50 text-red-400 rounded hover:bg-red-100">
+        ✕
+      </button>
+      <span x-show="c" class="inline-flex items-center gap-1">
+        <span class="text-xs text-gray-400">Delete?</span>
+        <button @click.stop
+                hx-delete="/projects/{{ project_name }}/tasks/{{ task_name }}"
+                hx-target="#task-panel" hx-swap="innerHTML"
+                class="text-xs px-1.5 py-0.5 bg-red-600 text-white rounded hover:bg-red-700">Yes</button>
+        <button @click.stop="c=false"
+                class="text-xs px-1.5 py-0.5 text-gray-400 hover:text-gray-600">No</button>
+      </span>
+    </span>
   </div>
 
 </div>

@@ -6,56 +6,115 @@
 } %}
 {% set sc = status_colors.get(p.status, "bg-gray-100 text-gray-500") %}
 
+{# Outer div: no x-data so x-show / :class can read parent aside's `filter` scope #}
 <div id="project-row-{{ p.name }}"
-     class="p-3 hover:bg-indigo-50 cursor-pointer {% if p.is_active %}border-l-4 border-indigo-500{% endif %}"
-     hx-get="/projects/{{ p.name }}/tasks"
-     hx-target="#task-panel"
-     hx-swap="innerHTML">
+     class="{% if p.is_active %}border-l-4 border-indigo-500{% endif %}"
+     :class="$store.ui && $store.ui.selectedProject === '{{ p.name }}' ? 'bg-indigo-50' : 'hover:bg-gray-50'"
+     x-show="!filter || $el.dataset.search.includes(filter.toLowerCase())"
+     data-search="{{ ((p.meta.get('title') or '') + ' ' + p.name) | lower }}"
+     title="{{ p.meta.get('title') or p.name }}">
 
-  <div class="flex items-center justify-between">
-    <div class="flex flex-col min-w-0">
-      <span class="font-medium text-sm truncate">
-        {{ p.meta.get("title") or p.name }}
-      </span>
-      {% if p.meta.get("title") and p.meta.title != p.name %}
-        <span class="text-xs text-gray-400 truncate">{{ p.name }}</span>
-      {% endif %}
+  {# Inner wrapper owns editMeta state so the gear and form share scope #}
+  <div x-data="{ editMeta: false }">
+
+    <!-- Clickable row content -->
+    <div class="p-3 cursor-pointer"
+         @click="if ($store.ui) $store.ui.selectedProject = '{{ p.name }}'"
+         hx-get="/projects/{{ p.name }}/tasks"
+         hx-target="#task-panel"
+         hx-swap="innerHTML">
+
+      <div class="flex items-center justify-between">
+        <div class="flex flex-col min-w-0">
+          <span class="font-medium text-sm truncate">
+            {{ p.meta.get("title") or p.name }}
+          </span>
+          {% if p.meta.get("title") and p.meta.title != p.name %}
+            <span class="text-xs text-gray-400 truncate">{{ p.name }}</span>
+          {% endif %}
+        </div>
+        <span class="text-xs px-2 py-0.5 rounded-full {{ sc }} ml-2 shrink-0">{{ p.status }}</span>
+      </div>
+
+      <div class="flex items-center justify-between mt-1">
+        <span class="text-xs text-gray-400">
+          {{ p.total_duration }}{% if p.last_updated %}<span class="text-gray-300 mx-1">·</span>{{ p.last_updated[:10] }}{% endif %}
+        </span>
+        <!-- Action buttons — stop propagation so click doesn't also load tasks -->
+        <div class="flex gap-1" onclick="event.stopPropagation()">
+          {% if p.status == "running" %}
+            <button hx-post="/projects/{{ p.name }}/pause"
+                    hx-target="#project-row-{{ p.name }}" hx-swap="outerHTML"
+                    class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">
+              Pause
+            </button>
+            <button hx-post="/projects/{{ p.name }}/finish"
+                    hx-target="#project-row-{{ p.name }}" hx-swap="outerHTML"
+                    class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded hover:bg-green-200">
+              Finish
+            </button>
+          {% elif p.status in ["paused", "finished", "aborted"] %}
+            <button hx-post="/projects/{{ p.name }}/resume"
+                    hx-target="#project-row-{{ p.name }}" hx-swap="outerHTML"
+                    class="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200">
+              Resume
+            </button>
+          {% endif %}
+          <!-- Gear: toggle meta edit -->
+          <button @click.stop="editMeta = !editMeta"
+                  :class="editMeta ? 'bg-indigo-100 text-indigo-600' : 'text-gray-300 hover:text-gray-500'"
+                  class="text-xs px-1.5 py-0.5 rounded">⚙</button>
+          <span x-data="{c:false}">
+            <button x-show="!c" @click.stop="c=true"
+                    class="text-xs px-2 py-0.5 bg-red-50 text-red-400 rounded hover:bg-red-100">
+              ✕
+            </button>
+            <span x-show="c" class="inline-flex items-center gap-1">
+              <span class="text-xs text-gray-400">Archive?</span>
+              <button @click.stop
+                      hx-delete="/projects/{{ p.name }}"
+                      hx-target="#project-list" hx-swap="innerHTML"
+                      class="text-xs px-1.5 py-0.5 bg-red-600 text-white rounded hover:bg-red-700">Yes</button>
+              <button @click.stop="c=false"
+                      class="text-xs px-1.5 py-0.5 text-gray-400 hover:text-gray-600">No</button>
+            </span>
+          </span>
+        </div>
+      </div>
     </div>
-    <span class="text-xs px-2 py-0.5 rounded-full {{ sc }} ml-2 shrink-0">{{ p.status }}</span>
-  </div>
 
-  <div class="flex items-center justify-between mt-1">
-    <span class="text-xs text-gray-400">{{ p.total_duration }}</span>
-    <!-- Action buttons — stop propagation so click doesn't also load tasks -->
-    <div class="flex gap-1" onclick="event.stopPropagation()">
-      {% if p.status == "running" %}
-        <button hx-post="/projects/{{ p.name }}/pause"
-                hx-target="#project-row-{{ p.name }}" hx-swap="outerHTML"
-                class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">
-          Pause
-        </button>
-        <button hx-post="/projects/{{ p.name }}/finish"
-                hx-target="#project-row-{{ p.name }}" hx-swap="outerHTML"
-                class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded hover:bg-green-200">
-          Finish
-        </button>
-      {% elif p.status in ["paused", "finished", "aborted"] %}
-        <button hx-post="/projects"
-                hx-target="#project-list" hx-swap="innerHTML"
-                class="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
-                hx-vals='{"name": "{{ p.name }}"}'>
-          Resume
-        </button>
-      {% endif %}
-      <button
-        onclick="event.stopPropagation()"
-        hx-delete="/projects/{{ p.name }}"
-        hx-target="#project-list" hx-swap="innerHTML"
-        hx-confirm="Archive project '{{ p.name }}'?"
-        class="text-xs px-2 py-0.5 bg-red-50 text-red-400 rounded hover:bg-red-100">
-        ✕
-      </button>
-    </div>
-  </div>
+    <!-- Meta edit form (inline, collapsible) -->
+    <form x-show="editMeta" x-cloak
+          hx-post="/projects/{{ p.name }}/meta"
+          hx-target="#project-row-{{ p.name }}" hx-swap="outerHTML"
+          @click.stop
+          class="px-3 pb-3 flex flex-col gap-2 text-xs border-t border-gray-100 bg-gray-50">
+      <div class="flex gap-2 mt-2">
+        <label class="w-20 text-gray-500 pt-1">Title</label>
+        <input name="title" type="text" value="{{ p.meta.get('title') or '' }}"
+               class="flex-1 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+      </div>
+      <div class="flex gap-2">
+        <label class="w-20 text-gray-500 pt-1">Client</label>
+        <input name="client_name" type="text" value="{{ p.meta.get('client_name') or '' }}"
+               class="flex-1 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+      </div>
+      <div class="flex gap-2">
+        <label class="w-20 text-gray-500 pt-1">Rate $/hr</label>
+        <input name="rate" type="number" step="0.01" min="0" value="{{ p.meta.get('rate') or '' }}"
+               class="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+      </div>
+      <div class="flex gap-2 items-center">
+        <label class="w-20 text-gray-500">Billable</label>
+        <input name="billable" type="checkbox" value="on" {% if p.meta.get('billable', True) %}checked{% endif %}
+               class="rounded text-indigo-600">
+      </div>
+      <div class="flex gap-2 mt-1">
+        <button class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">Save</button>
+        <button type="button" @click.stop="editMeta=false"
+                class="text-gray-400 hover:text-gray-600 px-2 py-1">Cancel</button>
+      </div>
+    </form>
 
+  </div>{# /inner x-data wrapper #}
 </div>

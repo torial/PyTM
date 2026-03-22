@@ -5,7 +5,7 @@
      x-init="start()">
   <div class="flex flex-col">
     <span class="text-xs text-indigo-300">Active</span>
-    <span class="font-semibold">{{ active.project }} / {{ active.task }}</span>
+    <span class="font-semibold truncate max-w-xs">{{ active.project_title or active.project }} / {{ active.task }}</span>
   </div>
   <div class="text-2xl font-mono font-bold tracking-widest" x-text="display"></div>
   <div class="flex gap-2 ml-auto">

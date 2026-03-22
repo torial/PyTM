@@ -1,14 +1,15 @@
 import datetime
 import os
+from typing import List
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
 from PyTM import settings
 from PyTM.core import invoice_handler
 from PyTM.web.app import templates
 from PyTM.web.dependencies import DataStore, get_data_store
-from PyTM.web.routes._helpers import active_session
+from PyTM.web.routes._helpers import active_session, oob_flash
 
 router = APIRouter(prefix="/invoices")
 
@@ -31,8 +32,23 @@ def _render_row(request: Request, record: dict) -> HTMLResponse:
 # ── List ──────────────────────────────────────────────────────────────────────
 
 @router.get("", response_class=HTMLResponse)
-async def list_invoices(request: Request, store: DataStore = Depends(get_data_store)):
-    return _render_list(request, store)
+async def list_invoices(
+    request: Request,
+    sort: str = Query("number"),
+    order: str = Query("asc"),
+    store: DataStore = Depends(get_data_store),
+):
+    invoices = store.load_invoices()
+    reverse = order == "desc"
+    if sort == "period":
+        key = lambda kv: kv[1].get("date_from") or ""
+    else:
+        key = lambda kv: int(kv[0]) if str(kv[0]).isdigit() else 0
+    sorted_invoices = dict(sorted(invoices.items(), key=key, reverse=reverse))
+    return templates.TemplateResponse(
+        "partials/invoice_list.html",
+        {"request": request, "invoices": sorted_invoices, "sort": sort, "order": order},
+    )
 
 
 # ── Full invoice page ─────────────────────────────────────────────────────────
@@ -42,6 +58,7 @@ async def invoices_page(request: Request, store: DataStore = Depends(get_data_st
     invoices = store.load_invoices()
     data = store.load_data()
     active = active_session(request)
+    next_num = max((int(k) for k in invoices if str(k).isdigit()), default=0) + 1
     return templates.TemplateResponse(
         "invoices.html",
         {
@@ -49,6 +66,7 @@ async def invoices_page(request: Request, store: DataStore = Depends(get_data_st
             "invoices": invoices,
             "projects": data,
             "active": active,
+            "next_invoice_number": next_num,
         },
     )
 
@@ -60,7 +78,7 @@ async def generate_invoice(
     request: Request,
     invoice_number: str = Form(...),
     title: str = Form("Invoice"),
-    project_keys: str = Form(""),       # comma-separated project keys, or "" = all
+    project_keys: List[str] = Form([]),  # multi-select values; empty = all billable
     date_from: str = Form(""),
     date_to: str = Form(""),
     discount: float = Form(0.0),
@@ -85,6 +103,7 @@ async def generate_invoice(
     data = store.load_data()
 
     # Build projects_data dict
+    keys_list = [k.strip() for k in project_keys if k.strip()]
     if manual_tasks_json:
         import json
         try:
@@ -106,14 +125,13 @@ async def generate_invoice(
                 },
             }
         }
-    elif project_keys.strip():
-        keys = [k.strip() for k in project_keys.split(",") if k.strip()]
-        missing = [k for k in keys if k not in data]
+    elif keys_list:
+        missing = [k for k in keys_list if k not in data]
         if missing:
             return HTMLResponse(
                 f"<p class='text-red-600'>Unknown project(s): {', '.join(missing)}</p>"
             )
-        projects_data = {k: data[k] for k in keys}
+        projects_data = {k: data[k] for k in keys_list}
     else:
         projects_data = data
 
@@ -132,15 +150,18 @@ async def generate_invoice(
     with open(html_path, "w") as f:
         f.write(html)
 
+    # Preserve payment status/date if this invoice number already exists
+    existing = store.load_invoices().get(invoice_number) or store.load_invoices().get(str(invoice_number))
     record = {
         "invoice_number": invoice_number,
         "title": title,
         "date_from": str(df) if df else None,
         "date_to": str(dt) if dt else None,
         "total": total,
-        "status": "unpaid",
-        "paid_date": None,
-        "created_at": str(datetime.date.today()),
+        "foot_note": foot_note,
+        "status": existing["status"] if existing else "unpaid",
+        "paid_date": existing.get("paid_date") if existing else None,
+        "created_at": existing.get("created_at", str(datetime.date.today())) if existing else str(datetime.date.today()),
     }
     store.save_invoice_record(record)
 
@@ -156,6 +177,25 @@ async def generate_invoice(
     )
 
 
+# ── View invoice HTML ─────────────────────────────────────────────────────────
+
+@router.get("/{invoice_number}/view", response_class=HTMLResponse)
+async def view_invoice(invoice_number: str, store: DataStore = Depends(get_data_store)):
+    invoices = store.load_invoices()
+    record = invoices.get(invoice_number) or invoices.get(str(invoice_number))
+    if not record:
+        return HTMLResponse("<p style='font-family:sans-serif;padding:2rem'>Invoice not found.</p>", status_code=404)
+    title = record.get("title", invoice_number)
+    inv_path = os.path.join(settings.data_folder, "invoices", f"{title}.html")
+    if not os.path.exists(inv_path):
+        return HTMLResponse(
+            f"<p style='font-family:sans-serif;padding:2rem'>Invoice file not found on disk: {inv_path}</p>",
+            status_code=404,
+        )
+    with open(inv_path, encoding="utf-8") as f:
+        return HTMLResponse(f.read())
+
+
 # ── Mark paid ─────────────────────────────────────────────────────────────────
 
 @router.post("/{invoice_number}/mark-paid", response_class=HTMLResponse)
@@ -167,7 +207,8 @@ async def mark_paid(
 ):
     date = paid_date or str(datetime.date.today())
     record = store.update_invoice_status(invoice_number, "paid", date)
-    return _render_row(request, record)
+    row_html = _render_row(request, record).body.decode()
+    return HTMLResponse(row_html + oob_flash(f"Invoice #{invoice_number} marked as paid"))
 
 
 # ── Write off ─────────────────────────────────────────────────────────────────
@@ -179,4 +220,5 @@ async def write_off(
     store: DataStore = Depends(get_data_store),
 ):
     record = store.update_invoice_status(invoice_number, "written_off")
-    return _render_row(request, record)
+    row_html = _render_row(request, record).body.decode()
+    return HTMLResponse(row_html + oob_flash(f"Invoice #{invoice_number} written off", "warning"))

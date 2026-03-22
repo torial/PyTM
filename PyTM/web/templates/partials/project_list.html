@@ -2,6 +2,12 @@
   {% for p in projects %}
     {% include "partials/project_row.html" %}
   {% endfor %}
+  {% if total_duration is defined %}
+  <div class="px-3 py-2 flex justify-between text-xs text-gray-400 border-t border-gray-100 bg-gray-50 sticky bottom-0">
+    <span>Total: <span class="text-gray-600 font-medium">{{ total_duration }}</span></span>
+    <span>Billable: <span class="text-indigo-500 font-medium">{{ billable_duration }}</span></span>
+  </div>
+  {% endif %}
 {% else %}
   <p class="p-4 text-sm text-gray-400">No projects yet. Create one above.</p>
 {% endif %}

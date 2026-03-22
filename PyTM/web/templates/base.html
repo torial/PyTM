@@ -9,14 +9,30 @@
   <script src="/static/htmx.min.js"></script>
   <link rel="stylesheet" href="/static/pytm.css">
   <script>
-    // Configure HTMX to send delete/patch via POST with _method override
     document.addEventListener("DOMContentLoaded", () => {
+      // Configure HTMX to send delete/patch via POST with _method override
       htmx.on("htmx:configRequest", (e) => {
         if (e.detail.verb === "delete") {
           e.detail.parameters["_method"] = "DELETE";
           e.detail.verb = "post";
           e.detail.path = e.detail.path + "?_method=DELETE";
         }
+      });
+
+      // Global loading indicator
+      const ind = document.getElementById("loading-indicator");
+      document.body.addEventListener("htmx:beforeRequest", () => ind?.classList.add("htmx-loading"));
+      document.body.addEventListener("htmx:afterRequest",  () => ind?.classList.remove("htmx-loading"));
+
+      // Keyboard shortcut: Space = pause/resume active timer (when not in a text field)
+      document.addEventListener("keydown", (e) => {
+        if (e.code !== "Space" || e.target.matches("input, textarea, select, button")) return;
+        const timer = document.getElementById("active-timer");
+        if (!timer || timer.classList.contains("hidden")) return;
+        e.preventDefault();
+        const pauseBtn = timer.querySelector("button[hx-post*='/pause']");
+        if (pauseBtn) { pauseBtn.click(); return; }
+        // Timer bar not visible but a task might be paused — no-op; user must resume from task row
       });
     });
   </script>
@@ -28,6 +44,11 @@
     <a href="/" class="font-bold text-lg tracking-wide">⏱ PyTM</a>
     <a href="/" class="hover:text-indigo-200 text-sm">Projects</a>
     <a href="/invoices/page" class="hover:text-indigo-200 text-sm">Invoices</a>
+    <div id="loading-indicator" class="ml-4 flex gap-1" aria-hidden="true">
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce" style="animation-delay:0ms"></span>
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce" style="animation-delay:100ms"></span>
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce" style="animation-delay:200ms"></span>
+    </div>
     <div id="flash-container" class="ml-auto text-sm"></div>
   </nav>
 

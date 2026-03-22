@@ -1,6 +1,6 @@
 from functools import partial as fp
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
 from PyTM import settings
@@ -9,19 +9,34 @@ from PyTM.web.app import templates
 from PyTM.web.dependencies import DataStore, get_data_store
 from PyTM.web.routes._helpers import (
     active_session, clear_active, set_active,
-    oob_timer, project_view,
+    oob_timer, oob_flash, project_view, fmt_duration,
 )
 
 router = APIRouter(prefix="/projects")
 
 
-def _render_list(request: Request, store: DataStore) -> str:
+def _render_list(request: Request, store: DataStore, sort: str = "name") -> str:
     data = store.load_data()
     active = active_session(request)
     projects = [project_view(n, data, active) for n in data]
+    if sort == "hours":
+        projects.sort(key=lambda p: p["total_seconds"], reverse=True)
+    elif sort == "updated":
+        projects.sort(key=lambda p: p["last_updated"], reverse=True)
+    else:
+        projects.sort(key=lambda p: p["name"].lower())
+    total_secs = sum(p["total_seconds"] for p in projects)
+    billable_secs = sum(p["total_seconds"] for p in projects if p["meta"].get("billable", True))
     return templates.TemplateResponse(
         "partials/project_list.html",
-        {"request": request, "projects": projects, "active": active},
+        {
+            "request": request,
+            "projects": projects,
+            "active": active,
+            "sort": sort,
+            "total_duration": fmt_duration(total_secs),
+            "billable_duration": fmt_duration(billable_secs),
+        },
     )
 
 
@@ -38,8 +53,12 @@ def _render_row(request: Request, store: DataStore, name: str) -> str:
 # ── List ──────────────────────────────────────────────────────────────────────
 
 @router.get("", response_class=HTMLResponse)
-async def list_projects(request: Request, store: DataStore = Depends(get_data_store)):
-    return _render_list(request, store)
+async def list_projects(
+    request: Request,
+    sort: str = Query("name"),
+    store: DataStore = Depends(get_data_store),
+):
+    return _render_list(request, store, sort)
 
 
 # ── Create ────────────────────────────────────────────────────────────────────
@@ -54,7 +73,8 @@ async def create_project(
     if not name:
         return _render_list(request, store)
     store.update(fp(project_handler.create, project_name=name))
-    return _render_list(request, store)
+    list_html = _render_list(request, store).body.decode()
+    return HTMLResponse(list_html + oob_flash(f"Project '{name}' created"))
 
 
 # ── Pause ─────────────────────────────────────────────────────────────────────
@@ -71,7 +91,7 @@ async def pause_project(
     clear_active(request)
     row_html = _render_row(request, store, name).body.decode()
     timer_html = oob_timer(request, templates)
-    return HTMLResponse(row_html + timer_html)
+    return HTMLResponse(row_html + timer_html + oob_flash("Project paused"))
 
 
 # ── Finish ────────────────────────────────────────────────────────────────────
@@ -87,7 +107,7 @@ async def finish_project(
     clear_active(request)
     row_html = _render_row(request, store, name).body.decode()
     timer_html = oob_timer(request, templates)
-    return HTMLResponse(row_html + timer_html)
+    return HTMLResponse(row_html + timer_html + oob_flash("Project finished"))
 
 
 # ── Abort ─────────────────────────────────────────────────────────────────────
@@ -103,7 +123,19 @@ async def abort_project(
     clear_active(request)
     row_html = _render_row(request, store, name).body.decode()
     timer_html = oob_timer(request, templates)
-    return HTMLResponse(row_html + timer_html)
+    return HTMLResponse(row_html + timer_html + oob_flash("Project aborted", "warning"))
+
+
+# ── Resume ────────────────────────────────────────────────────────────────────
+
+@router.post("/{name}/resume", response_class=HTMLResponse)
+async def resume_project(
+    request: Request, name: str, store: DataStore = Depends(get_data_store)
+):
+    store.update(fp(project_handler.create, project_name=name))
+    row_html = _render_row(request, store, name).body.decode()
+    timer_html = oob_timer(request, templates)
+    return HTMLResponse(row_html + timer_html + oob_flash("Project resumed"))
 
 
 # ── Delete (archive) ──────────────────────────────────────────────────────────
@@ -119,7 +151,33 @@ async def delete_project(
     active = active_session(request)
     if active["project"] == name:
         clear_active(request)
-    return _render_list(request, store)
+    list_html = _render_list(request, store).body.decode()
+    return HTMLResponse(list_html + oob_flash("Project archived", "info"))
+
+
+# ── Update project meta ───────────────────────────────────────────────────────
+
+@router.post("/{name}/meta", response_class=HTMLResponse)
+async def update_project_meta(
+    request: Request,
+    name: str,
+    title: str = Form(""),
+    client_name: str = Form(""),
+    rate: float = Form(0.0),
+    billable: str = Form(""),
+    store: DataStore = Depends(get_data_store),
+):
+    def _update(data):
+        if data.get(name):
+            meta = data[name].setdefault("meta", {})
+            meta["title"] = title.strip() or None
+            meta["client_name"] = client_name.strip()
+            meta["rate"] = rate
+            meta["billable"] = billable == "on"
+        return data
+    store.update(_update)
+    row_html = _render_row(request, store, name).body.decode()
+    return HTMLResponse(row_html + oob_flash("Project updated"))
 
 
 # ── Task list for a project ───────────────────────────────────────────────────
@@ -131,11 +189,13 @@ async def task_panel(
     data = store.load_data()
     active = active_session(request)
     proj = data.get(name, {})
+    proj_title = proj.get("meta", {}).get("title") or name
     return templates.TemplateResponse(
         "partials/task_list.html",
         {
             "request": request,
             "project_name": name,
+            "proj_title": proj_title,
             "tasks": proj.get("tasks", {}),
             "active": active,
         },

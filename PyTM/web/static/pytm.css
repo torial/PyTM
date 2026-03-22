@@ -2,6 +2,10 @@
 
 [x-cloak] { display: none !important; }
 
+/* HTMX global loading indicator */
+#loading-indicator { opacity: 0; transition: opacity 0.15s ease; pointer-events: none; }
+#loading-indicator.htmx-loading { opacity: 1; }
+
 /* Smooth HTMX transitions */
 .htmx-settling { opacity: 0.6; transition: opacity 0.15s ease; }
 .htmx-swapping  { opacity: 0; transition: opacity 0.1s ease; }

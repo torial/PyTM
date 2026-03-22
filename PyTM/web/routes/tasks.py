@@ -10,7 +10,7 @@ from PyTM.web.app import templates
 from PyTM.web.dependencies import DataStore, get_data_store
 from PyTM.web.routes._helpers import (
     active_session, clear_active, set_active,
-    oob_timer, fmt_duration,
+    oob_timer, oob_flash, fmt_duration,
 )
 
 router = APIRouter(prefix="/projects/{project_name}/tasks")
@@ -20,11 +20,13 @@ def _render_list(request: Request, store: DataStore, project_name: str) -> HTMLR
     data = store.load_data()
     active = active_session(request)
     proj = data.get(project_name, {})
+    proj_title = proj.get("meta", {}).get("title") or project_name
     return templates.TemplateResponse(
         "partials/task_list.html",
         {
             "request": request,
             "project_name": project_name,
+            "proj_title": proj_title,
             "tasks": proj.get("tasks", {}),
             "active": active,
         },
@@ -74,11 +76,12 @@ async def create_task(
     clear_active(request)
 
     store.update(fp(task_handler.create, project_name=project_name, task_name=name))
-    set_active(request, project_name, name, base=0.0)
+    proj_title = store.load_data().get(project_name, {}).get("meta", {}).get("title") or project_name
+    set_active(request, project_name, name, base=0.0, project_title=proj_title)
 
     list_html = _render_list(request, store, project_name).body.decode()
     timer_html = oob_timer(request, templates)
-    return HTMLResponse(list_html + timer_html)
+    return HTMLResponse(list_html + timer_html + oob_flash(f"Task '{name}' started"))
 
 
 # ── Start (resume existing) ───────────────────────────────────────────────────
@@ -102,12 +105,13 @@ async def start_task(
 
     store.update(fp(task_handler.create, project_name=project_name, task_name=task_name))
     data = store.load_data()
+    proj_title = data.get(project_name, {}).get("meta", {}).get("title") or project_name
     base = data.get(project_name, {}).get("tasks", {}).get(task_name, {}).get("duration", 0.0)
-    set_active(request, project_name, task_name, base=base)
+    set_active(request, project_name, task_name, base=base, project_title=proj_title)
 
     row_html = _render_row(request, store, project_name, task_name).body.decode()
     timer_html = oob_timer(request, templates)
-    return HTMLResponse(row_html + timer_html)
+    return HTMLResponse(row_html + timer_html + oob_flash(f"Task '{task_name}' resumed"))
 
 
 # ── Pause ─────────────────────────────────────────────────────────────────────
@@ -123,7 +127,7 @@ async def pause_task(
     clear_active(request)
     row_html = _render_row(request, store, project_name, task_name).body.decode()
     timer_html = oob_timer(request, templates)
-    return HTMLResponse(row_html + timer_html)
+    return HTMLResponse(row_html + timer_html + oob_flash("Task paused"))
 
 
 # ── Finish ────────────────────────────────────────────────────────────────────
@@ -139,7 +143,7 @@ async def finish_task(
     clear_active(request)
     row_html = _render_row(request, store, project_name, task_name).body.decode()
     timer_html = oob_timer(request, templates)
-    return HTMLResponse(row_html + timer_html)
+    return HTMLResponse(row_html + timer_html + oob_flash("Task finished"))
 
 
 # ── Abort ─────────────────────────────────────────────────────────────────────
@@ -157,7 +161,7 @@ async def abort_task(
         clear_active(request)
     row_html = _render_row(request, store, project_name, task_name).body.decode()
     timer_html = oob_timer(request, templates)
-    return HTMLResponse(row_html + timer_html)
+    return HTMLResponse(row_html + timer_html + oob_flash("Task aborted", "warning"))
 
 
 # ── Delete ────────────────────────────────────────────────────────────────────
@@ -173,7 +177,8 @@ async def delete_task(
     if active["project"] == project_name and active["task"] == task_name:
         clear_active(request)
     store.update(fp(task_handler.remove, project_name=project_name, task_name=task_name))
-    return _render_list(request, store, project_name)
+    list_html = _render_list(request, store, project_name).body.decode()
+    return HTMLResponse(list_html + oob_flash("Task deleted", "info"))
 
 
 # ── Backfill ──────────────────────────────────────────────────────────────────
@@ -216,4 +221,5 @@ async def backfill_task(
         return data
 
     store.update(_insert)
-    return _render_list(request, store, project_name)
+    list_html = _render_list(request, store, project_name).body.decode()
+    return HTMLResponse(list_html + oob_flash("Backfill entry added"))

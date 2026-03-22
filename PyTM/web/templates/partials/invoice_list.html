@@ -9,13 +9,30 @@
 </div>
 {% endif %}
 
+{% set sort = sort if sort is defined else "number" %}
+{% set order = order if order is defined else "asc" %}
+{% set next_num_order = "desc" if sort == "number" and order == "asc" else "asc" %}
+{% set next_per_order = "desc" if sort == "period" and order == "asc" else "asc" %}
+
 {% if invoices %}
 <table class="w-full text-sm border-collapse">
   <thead>
     <tr class="bg-gray-50 text-gray-600 text-left">
-      <th class="px-3 py-2 border-b border-gray-200">#</th>
+      <th class="px-3 py-2 border-b border-gray-200">
+        <button class="flex items-center gap-1 hover:text-indigo-600 {% if sort == 'number' %}text-indigo-600 font-semibold{% endif %}"
+                hx-get="/invoices?sort=number&order={{ next_num_order }}"
+                hx-target="#invoice-list" hx-swap="innerHTML">
+          #{% if sort == "number" %} {{ "▲" if order == "asc" else "▼" }}{% endif %}
+        </button>
+      </th>
       <th class="px-3 py-2 border-b border-gray-200">Title</th>
-      <th class="px-3 py-2 border-b border-gray-200">Period</th>
+      <th class="px-3 py-2 border-b border-gray-200">
+        <button class="flex items-center gap-1 hover:text-indigo-600 {% if sort == 'period' %}text-indigo-600 font-semibold{% endif %}"
+                hx-get="/invoices?sort=period&order={{ next_per_order }}"
+                hx-target="#invoice-list" hx-swap="innerHTML">
+          Period{% if sort == "period" %} {{ "▲" if order == "asc" else "▼" }}{% endif %}
+        </button>
+      </th>
       <th class="px-3 py-2 border-b border-gray-200 text-right">Total</th>
       <th class="px-3 py-2 border-b border-gray-200">Status</th>
       <th class="px-3 py-2 border-b border-gray-200">Paid</th>
@@ -23,7 +40,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for inv_num, inv in invoices.items() | sort %}
+    {% for inv_num, inv in invoices.items() %}
       {% set inv = inv %}
       {% include "partials/invoice_row.html" %}
     {% endfor %}
